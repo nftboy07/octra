@@ -59,6 +59,24 @@ and performs the same non-executing source sync and inventory as the local setup
 The script intentionally does not install build or profiling toolchains, configure
 cron jobs, change firewall rules, or run cloned source code.
 
+## Telegram notifications
+
+Telegram support is optional and uses the standard Bot API without extra Python
+dependencies. Configure it on the VPS from an interactive SSH session so the bot
+token never enters Git, shell history, or this repository:
+
+```bash
+sudo -u octra -H bash /home/octra/octra_investigation/toolkit/scripts/configure-telegram.sh
+sudo -u octra -H /home/octra/octra_investigation/toolkit/.venv/bin/octra-recon telegram status
+sudo -u octra -H /home/octra/octra_investigation/toolkit/.venv/bin/octra-recon telegram test
+```
+
+The setup script stores the token and chat ID at
+`/home/octra/.config/octra-recon/telegram.env` with owner-only permissions. Once
+configured, supported CLI commands send a short completion or failure notification.
+Run `telegram test` after starting a conversation with your bot or adding it to the
+target group/channel.
+
 ## Scope and safeguards
 
 See [docs/scope.md](docs/scope.md) for the workflow boundary and

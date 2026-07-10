@@ -9,6 +9,7 @@ from typing import Any
 
 from .artifacts import detect_repeated_blocks, extract_params, verify_checksums
 from .sources import ReconError, source_status, sync_sources
+from .telegram import notify_telegram, telegram_status
 from .workspace import init_workspace, inventory_sources, require_workspace, write_json
 
 
@@ -46,6 +47,16 @@ def build_parser() -> argparse.ArgumentParser:
     _workspace_argument(nonces)
     nonces.add_argument("--file", default="seed.ct", help="Artifact file name")
     nonces.add_argument("--block-size", type=int, default=16, help="Heuristic block width in bytes")
+
+    telegram = subparsers.add_parser("telegram", help="Inspect or test optional Telegram notifications")
+    telegram_subparsers = telegram.add_subparsers(dest="telegram_command", required=True)
+    telegram_subparsers.add_parser("status", help="Show whether Telegram is configured")
+    telegram_test = telegram_subparsers.add_parser("test", help="Send a Telegram test message")
+    telegram_test.add_argument(
+        "--message",
+        default="Octra Recon Telegram integration is configured.",
+        help="Test message to send",
+    )
     return parser
 
 
@@ -54,6 +65,11 @@ def _emit(value: dict[str, Any]) -> None:
 
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
+    if args.command == "telegram" and args.telegram_command == "status":
+        return telegram_status()
+    if args.command == "telegram" and args.telegram_command == "test":
+        return {"channel": "telegram", "status": "test_requested"}
+
     workspace = args.workspace
     if args.command == "init":
         return init_workspace(workspace)
@@ -78,11 +94,31 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     raise ReconError("Unsupported command.")
 
 
+def _notification_message(args: argparse.Namespace, result: dict[str, Any]) -> str | None:
+    if args.command == "telegram":
+        return args.message if args.telegram_command == "test" else None
+
+    summary = "completed"
+    if args.command == "inventory":
+        summary = f"completed: {result['file_count']} files indexed"
+    elif args.command == "artifacts" and args.artifacts_command == "verify":
+        summary = "completed: checksums verified" if result["ok"] else "completed: checksum mismatches found"
+    elif args.command == "sources" and args.sources_command == "sync":
+        summary = f"completed: {len(result['sources'])} sources synchronized"
+    return f"Octra Recon {args.command} {summary}."
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        _emit(run(args))
+        result = run(args)
+        message = _notification_message(args, result)
+        if message:
+            notification = notify_telegram(message, required=args.command == "telegram")
+            if notification is not None:
+                result["notification"] = notification
+        _emit(result)
     except ReconError as error:
         parser.exit(2, f"error: {error}\n")
     return 0

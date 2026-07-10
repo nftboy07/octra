@@ -7,7 +7,7 @@ name = "octra-recon"
 version = "0.1.0"
 description = "Reproducible, non-executing Octra source and artifact reconnaissance"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 
 [project.scripts]

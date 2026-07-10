@@ -2,7 +2,7 @@
 
 This repository provides a small, reproducible Python CLI for the safe setup and
 static collection portion of the supplied Octra investigation brief. It is
-Windows-compatible and has no runtime dependencies outside Python 3.11+ and Git.
+Windows-compatible and has no runtime dependencies outside Python 3.10+ and Git.
 
 The CLI never executes cloned source files, wallet generators, downloaded
 binaries, build steps, or network-node software. It also does not configure

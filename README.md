@@ -49,6 +49,16 @@ finding without source-format validation.
 .\.venv\Scripts\python -m unittest discover -s tests -v
 ```
 
+## VPS deployment
+
+The repository includes `scripts/bootstrap-vps.sh` for a Debian or Ubuntu VPS.
+It installs the toolkit's Python and Git dependencies, creates a non-root `octra`
+user, checks out a supplied commit, initializes `/home/octra/octra_investigation`,
+and performs the same non-executing source sync and inventory as the local setup.
+
+The script intentionally does not install build or profiling toolchains, configure
+cron jobs, change firewall rules, or run cloned source code.
+
 ## Scope and safeguards
 
 See [docs/scope.md](docs/scope.md) for the workflow boundary and

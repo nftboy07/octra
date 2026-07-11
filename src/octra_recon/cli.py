@@ -10,9 +10,18 @@ from typing import Any
 from .artifacts import detect_repeated_blocks, extract_params, verify_checksums
 from .hypotheses import run_hypotheses
 from .lpn import inventory_lpn_samples, summarize_lpn, verify_lpn_checksums
+from .ops import (
+    create_archive,
+    full_ops_cycle,
+    github_poll,
+    heartbeat,
+    integrity_check,
+    process_candidates,
+)
 from .sources import ReconError, source_status, sync_sources
 from .surface import open_surface_status
 from .telegram import notify_telegram, telegram_status
+from .unlock_scan import scan_challenge_workspace, telegram_blurb
 from .wallet import TARGET_ADDRESS, check_mnemonic_against_target
 from .workspace import init_workspace, inventory_sources, require_workspace, write_json
 
@@ -54,33 +63,20 @@ def build_parser() -> argparse.ArgumentParser:
 
     lpn = subparsers.add_parser("lpn", help="Read-only LPN sample inventory and checksum verification")
     lpn_subparsers = lpn.add_subparsers(dest="lpn_command", required=True)
-    lpn_inv = lpn_subparsers.add_parser(
-        "inventory",
-        help="Parse LPN sample metadata, row counts, seed uniqueness, hardness notes",
-    )
+    lpn_inv = lpn_subparsers.add_parser("inventory", help="Parse LPN sample metadata")
     _workspace_argument(lpn_inv)
-    lpn_inv.add_argument(
-        "--scan-y-bits",
-        action="store_true",
-        help="Stream y-bit statistics per file (slower; full 44-file scan)",
-    )
-    lpn_sums = lpn_subparsers.add_parser(
-        "verify",
-        help="Verify lpn_samples/* digests listed in SHA256SUMS",
-    )
+    lpn_inv.add_argument("--scan-y-bits", action="store_true")
+    lpn_sums = lpn_subparsers.add_parser("verify", help="Verify lpn_samples digests")
     _workspace_argument(lpn_sums)
-    lpn_sum = lpn_subparsers.add_parser(
-        "summary",
-        help="Compact inventory + checksum summary for the investigation log",
-    )
+    lpn_sum = lpn_subparsers.add_parser("summary", help="Inventory + checksum summary")
     _workspace_argument(lpn_sum)
 
     wallet = subparsers.add_parser("wallet", help="Octra BIP39 address derivation / target check")
     wallet_sub = wallet.add_subparsers(dest="wallet_command", required=True)
     wcheck = wallet_sub.add_parser("check", help="Derive address from a mnemonic and compare to target")
-    wcheck.add_argument("--mnemonic", required=True, help="12-24 word BIP39 mnemonic")
-    wcheck.add_argument("--passphrase", default="", help="Optional BIP39 passphrase")
-    wcheck.add_argument("--target", default=TARGET_ADDRESS, help="Target oct... address")
+    wcheck.add_argument("--mnemonic", required=True)
+    wcheck.add_argument("--passphrase", default="")
+    wcheck.add_argument("--target", default=TARGET_ADDRESS)
 
     hyp = subparsers.add_parser("hypotheses", help="Cheap wallet-entropy hypothesis screen")
     hyp_sub = hyp.add_subparsers(dest="hypotheses_command", required=True)
@@ -88,20 +84,34 @@ def build_parser() -> argparse.ArgumentParser:
     _workspace_argument(hyp_run)
     hyp_run.add_argument("--target", default=TARGET_ADDRESS)
 
-    surface = subparsers.add_parser("surface", help="Print machine-readable open-surface status")
+    surface = subparsers.add_parser("surface", help="Open-surface status")
     surface_sub = surface.add_subparsers(dest="surface_command", required=True)
-    surface_status = surface_sub.add_parser("status", help="Blocking pillars, FURY notes, unlock events")
+    surface_status = surface_sub.add_parser("status")
     surface_status.add_argument("--workspace", type=Path, default=None)
 
-    telegram = subparsers.add_parser("telegram", help="Inspect or test optional Telegram notifications")
+    unlock = subparsers.add_parser("unlock", help="Scan for Rku/sk/new unlock artifacts")
+    unlock_sub = unlock.add_subparsers(dest="unlock_command", required=True)
+    unlock_scan = unlock_sub.add_parser("scan", help="Scan challenge + artifacts trees")
+    _workspace_argument(unlock_scan)
+
+    ops = subparsers.add_parser("ops", help="24x7 integrity, heartbeat, github poll, candidates, archive")
+    ops_sub = ops.add_subparsers(dest="ops_command", required=True)
+    for name, help_text in (
+        ("integrity", "Daily integrity + LPN checksums + unlock scan"),
+        ("heartbeat", "Status heartbeat message payload"),
+        ("github", "Poll GitHub commits for keyword alerts"),
+        ("candidates", "Process candidates/inbox mnemonics"),
+        ("archive", "Create compressed snapshot of logs/pins"),
+        ("cycle", "integrity + github + candidates + heartbeat"),
+    ):
+        p = ops_sub.add_parser(name, help=help_text)
+        _workspace_argument(p)
+
+    telegram = subparsers.add_parser("telegram", help="Telegram notifications")
     telegram_subparsers = telegram.add_subparsers(dest="telegram_command", required=True)
-    telegram_subparsers.add_parser("status", help="Show whether Telegram is configured")
-    telegram_test = telegram_subparsers.add_parser("test", help="Send a Telegram test message")
-    telegram_test.add_argument(
-        "--message",
-        default="Octra Recon Telegram integration is configured.",
-        help="Test message to send",
-    )
+    telegram_subparsers.add_parser("status")
+    telegram_test = telegram_subparsers.add_parser("test")
+    telegram_test.add_argument("--message", default="Octra Recon Telegram integration is configured.")
     return parser
 
 
@@ -124,8 +134,16 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 
     workspace = args.workspace
     if args.command == "init":
-        return init_workspace(workspace)
+        result = init_workspace(workspace)
+        # ensure ops directories
+        ws = Path(result["workspace"])
+        for sub in ("candidates/inbox", "candidates/processed", "candidates/hits", "reports"):
+            (ws / sub).mkdir(parents=True, exist_ok=True)
+        return result
+
     workspace = require_workspace(workspace)
+    base = workspace.parent
+
     if args.command == "sources" and args.sources_command == "sync":
         result = sync_sources(workspace)
         write_json(workspace / "logs" / "sources.json", result)
@@ -151,12 +169,70 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         return summarize_lpn(workspace)
     if args.command == "hypotheses" and args.hypotheses_command == "run":
         return run_hypotheses(workspace, target=args.target)
+    if args.command == "unlock" and args.unlock_command == "scan":
+        return scan_challenge_workspace(workspace)
+    if args.command == "ops":
+        if args.ops_command == "integrity":
+            return integrity_check(workspace)
+        if args.ops_command == "heartbeat":
+            return heartbeat(workspace, base=base)
+        if args.ops_command == "github":
+            return github_poll(workspace)
+        if args.ops_command == "candidates":
+            return process_candidates(workspace)
+        if args.ops_command == "archive":
+            return create_archive(workspace, base=base)
+        if args.ops_command == "cycle":
+            return full_ops_cycle(workspace, base=base)
     raise ReconError("Unsupported command.")
 
 
 def _notification_message(args: argparse.Namespace, result: dict[str, Any]) -> str | None:
     if args.command == "telegram":
         return args.message if args.telegram_command == "test" else None
+
+    if args.command == "unlock":
+        return telegram_blurb(result)
+
+    if args.command == "ops":
+        if args.ops_command == "heartbeat":
+            return result.get("message")
+        if args.ops_command == "integrity":
+            if result.get("telegram"):
+                return f"INTEGRITY+UNLOCK {result['telegram']}"
+            ok = result.get("ok")
+            return f"INTEGRITY ok={ok} lpn={result.get('lpn_checksums_ok')} secret_match={result.get('secret_ct_matches_manifest')}"
+        if args.ops_command == "github":
+            high = result.get("high_priority") or []
+            if high:
+                first = high[0]
+                return (
+                    f"GITHUB HIGH {first.get('repo')} {first.get('sha')}: {first.get('message')} "
+                    f"kw={first.get('keywords')}"
+                )
+            n = result.get("alert_count", 0)
+            if n:
+                return f"GITHUB {n} new commit(s) across watched repos"
+            return None  # quiet if nothing new
+        if args.ops_command == "candidates":
+            if result.get("hits"):
+                return f"CANDIDATE HIT count={result['hits']} — verify and claim path NOW"
+            if result.get("processed"):
+                return f"CANDIDATES processed={result['processed']} hits=0"
+            return None
+        if args.ops_command == "archive":
+            return f"ARCHIVE created {result.get('archive')} size={result.get('size_bytes')}"
+        if args.ops_command == "cycle":
+            if result.get("candidate_hits") or result.get("unlock_signal") or result.get("github_high"):
+                return (
+                    f"OPS CYCLE unlock={result.get('unlock_signal')} "
+                    f"gh_high={result.get('github_high')} cand_hits={result.get('candidate_hits')} "
+                    f"integrity_ok={result.get('integrity_ok')}"
+                )
+            return (
+                f"OPS CYCLE ok integrity={result.get('integrity_ok')} "
+                f"gh_alerts={result.get('github_alerts')} cand_hits=0"
+            )
 
     summary = "completed"
     if args.command == "inventory":
@@ -177,10 +253,7 @@ def _notification_message(args: argparse.Namespace, result: dict[str, Any]) -> s
             summary = f"completed: {result.get('file_count')} files, ok={result.get('ok')}"
     elif args.command == "hypotheses":
         hits = result.get("hits", 0)
-        if hits:
-            summary = f"HIT count={hits} — verify offline immediately"
-        else:
-            summary = f"completed: tested={result.get('tested')} hits=0"
+        summary = f"HIT count={hits}" if hits else f"completed: tested={result.get('tested')} hits=0"
     elif args.command == "wallet":
         summary = f"match={result.get('match')}"
     elif args.command == "surface":
@@ -195,7 +268,6 @@ def main(argv: list[str] | None = None) -> int:
         result = run(args)
         message = _notification_message(args, result)
         if message:
-            # Force-required notification only for telegram test; hits still optional channel
             notification = notify_telegram(message, required=args.command == "telegram")
             if notification is not None:
                 result["notification"] = notification

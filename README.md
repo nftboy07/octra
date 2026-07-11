@@ -109,6 +109,25 @@ configured, supported CLI commands send a short completion or failure notificati
 Run `telegram test` after starting a conversation with your bot or adding it to the
 target group/channel.
 
+## 24×7 operations (VPS)
+
+```bash
+# after sync on VPS:
+bash /home/ubuntu/octra_investigation/scripts/install-ops.sh
+
+octra-recon unlock scan --workspace $W
+octra-recon ops integrity --workspace $W
+octra-recon ops cycle --workspace $W
+octra-recon ops heartbeat --workspace $W
+octra-recon ops github --workspace $W
+octra-recon ops candidates --workspace $W
+octra-recon ops archive --workspace $W
+```
+
+Timers (systemd): watchdog 2h, ops-cycle 6h, integrity 24h, archive ~monthly.  
+Unlock runbook: `docs/UNLOCK_RUNBOOK.md`.  
+Candidate drop: `workspace/candidates/inbox/` (one mnemonic per file).
+
 ## Scope and safeguards
 
 See [docs/scope.md](docs/scope.md) for the workflow boundary and

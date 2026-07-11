@@ -43,6 +43,20 @@ prints JSON metadata and, when `powg_B` is a list, writes an indexed dump.
 protocol-aware nonce parser; its result must not be treated as a cryptographic
 finding without source-format validation.
 
+## Wallet checks and hypotheses
+
+```powershell
+octra-recon wallet check --mnemonic "word1 word2 ... word12"
+octra-recon hypotheses run --workspace .\investigation
+octra-recon surface status --workspace .\investigation
+```
+
+`wallet check` derives the Octra address (BIP39 → PBKDF2 → HMAC "Octra seed" →
+Ed25519 → `oct`+base58(SHA256(pubkey))) and compares to the bounty target.
+`hypotheses run` tests a few hundred low-entropy / public-string candidates only
+(not a 2^128 search). `surface status` records blocking pillars, LPN notes, and
+FURY applicability (no Rku in the public package at pin `071b0e9`).
+
 ## LPN sample checks (July 11 drop)
 
 Place `lpn_samples/` under `artifacts/lpn_samples` or ensure

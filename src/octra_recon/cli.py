@@ -8,9 +8,12 @@ from pathlib import Path
 from typing import Any
 
 from .artifacts import detect_repeated_blocks, extract_params, verify_checksums
+from .hypotheses import run_hypotheses
 from .lpn import inventory_lpn_samples, summarize_lpn, verify_lpn_checksums
 from .sources import ReconError, source_status, sync_sources
+from .surface import open_surface_status
 from .telegram import notify_telegram, telegram_status
+from .wallet import TARGET_ADDRESS, check_mnemonic_against_target
 from .workspace import init_workspace, inventory_sources, require_workspace, write_json
 
 
@@ -72,6 +75,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _workspace_argument(lpn_sum)
 
+    wallet = subparsers.add_parser("wallet", help="Octra BIP39 address derivation / target check")
+    wallet_sub = wallet.add_subparsers(dest="wallet_command", required=True)
+    wcheck = wallet_sub.add_parser("check", help="Derive address from a mnemonic and compare to target")
+    wcheck.add_argument("--mnemonic", required=True, help="12-24 word BIP39 mnemonic")
+    wcheck.add_argument("--passphrase", default="", help="Optional BIP39 passphrase")
+    wcheck.add_argument("--target", default=TARGET_ADDRESS, help="Target oct... address")
+
+    hyp = subparsers.add_parser("hypotheses", help="Cheap wallet-entropy hypothesis screen")
+    hyp_sub = hyp.add_subparsers(dest="hypotheses_command", required=True)
+    hyp_run = hyp_sub.add_parser("run", help="Test a few hundred public/low-entropy candidates")
+    _workspace_argument(hyp_run)
+    hyp_run.add_argument("--target", default=TARGET_ADDRESS)
+
+    surface = subparsers.add_parser("surface", help="Print machine-readable open-surface status")
+    surface_sub = surface.add_subparsers(dest="surface_command", required=True)
+    surface_status = surface_sub.add_parser("status", help="Blocking pillars, FURY notes, unlock events")
+    surface_status.add_argument("--workspace", type=Path, default=None)
+
     telegram = subparsers.add_parser("telegram", help="Inspect or test optional Telegram notifications")
     telegram_subparsers = telegram.add_subparsers(dest="telegram_command", required=True)
     telegram_subparsers.add_parser("status", help="Show whether Telegram is configured")
@@ -93,6 +114,13 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         return telegram_status()
     if args.command == "telegram" and args.telegram_command == "test":
         return {"channel": "telegram", "status": "test_requested"}
+    if args.command == "surface" and args.surface_command == "status":
+        ws = args.workspace
+        if ws is not None:
+            ws = require_workspace(ws)
+        return open_surface_status(ws)
+    if args.command == "wallet" and args.wallet_command == "check":
+        return check_mnemonic_against_target(args.mnemonic, target=args.target, passphrase=args.passphrase)
 
     workspace = args.workspace
     if args.command == "init":
@@ -121,6 +149,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         return verify_lpn_checksums(workspace)
     if args.command == "lpn" and args.lpn_command == "summary":
         return summarize_lpn(workspace)
+    if args.command == "hypotheses" and args.hypotheses_command == "run":
+        return run_hypotheses(workspace, target=args.target)
     raise ReconError("Unsupported command.")
 
 
@@ -144,10 +174,17 @@ def _notification_message(args: argparse.Namespace, result: dict[str, Any]) -> s
         elif args.lpn_command == "verify":
             summary = "completed: LPN checksums ok" if result.get("ok") else "completed: LPN checksum issues"
         else:
-            summary = (
-                f"completed: {result.get('file_count')} files, "
-                f"ok={result.get('ok')}"
-            )
+            summary = f"completed: {result.get('file_count')} files, ok={result.get('ok')}"
+    elif args.command == "hypotheses":
+        hits = result.get("hits", 0)
+        if hits:
+            summary = f"HIT count={hits} — verify offline immediately"
+        else:
+            summary = f"completed: tested={result.get('tested')} hits=0"
+    elif args.command == "wallet":
+        summary = f"match={result.get('match')}"
+    elif args.command == "surface":
+        summary = "open surface status emitted"
     return f"Octra Recon {args.command} {summary}."
 
 
@@ -158,6 +195,7 @@ def main(argv: list[str] | None = None) -> int:
         result = run(args)
         message = _notification_message(args, result)
         if message:
+            # Force-required notification only for telegram test; hits still optional channel
             notification = notify_telegram(message, required=args.command == "telegram")
             if notification is not None:
                 result["notification"] = notification

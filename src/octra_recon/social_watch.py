@@ -169,6 +169,7 @@ def watch_github_repos(state: dict[str, Any]) -> tuple[list[dict[str, Any]], dic
     alerts: list[dict[str, Any]] = []
     shas: dict[str, str] = dict(state.get("shas") or {})
     issue_ids: dict[str, int] = dict(state.get("issue_ids") or {})
+    api_errors = 0
 
     for owner, repo in GITHUB_REPOS:
         key = f"{owner}/{repo}"
@@ -179,7 +180,18 @@ def watch_github_repos(state: dict[str, Any]) -> tuple[list[dict[str, Any]], dic
                 headers=_gh_headers(),
             )
         except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as error:
-            alerts.append({"source": "github", "repo": key, "error": type(error).__name__, "priority": "info"})
+            api_errors += 1
+            # avoid spamming 7 identical rate-limit rows every cycle
+            if api_errors <= 1:
+                alerts.append(
+                    {
+                        "source": "github",
+                        "repo": key,
+                        "error": type(error).__name__,
+                        "priority": "info",
+                        "hint": "Unauthenticated API limit is 60/hr. Set OCTRA_GITHUB_TOKEN. Git clones still track via intel-repos.sh.",
+                    }
+                )
             continue
 
         if not isinstance(commits, list) or not commits:

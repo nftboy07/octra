@@ -70,9 +70,14 @@ check_repo pvac_hfhe_cpp "$BASE/repos/pvac_hfhe_cpp" main
 check_repo smoke-ui "$BASE/repos/smoke-ui" main
 check_repo octra-recon "$BASE/repos/octra-recon" main
 
-# GitHub + X/Twitter social intel (new commits, issues, writeups, posts)
+# Git-based intel clones (no API rate limit) + social API/X watch
+if [[ -x "$BASE/scripts/intel-repos.sh" ]]; then
+  bash "$BASE/scripts/intel-repos.sh" >/dev/null 2>&1 || true
+elif [[ -x "$BASE/repos/octra-recon/scripts/intel-repos.sh" ]]; then
+  bash "$BASE/repos/octra-recon/scripts/intel-repos.sh" >/dev/null 2>&1 || true
+fi
 if [[ -x "$RECON" ]]; then
-  "$RECON" ops github --workspace "$WS" >/dev/null 2>&1 || true
+  # Prefer social (includes github); skip bare github if rate-limited recently
   "$RECON" ops social --workspace "$WS" >/dev/null 2>&1 || true
 fi
 

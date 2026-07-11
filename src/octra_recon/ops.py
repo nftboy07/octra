@@ -14,6 +14,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from .lpn import summarize_lpn, verify_lpn_checksums
+from .social_watch import social_telegram_messages, social_watch
 from .sources import ReconError
 from .unlock_scan import scan_challenge_workspace, telegram_blurb
 from .wallet import TARGET_ADDRESS, check_mnemonic_against_target
@@ -347,10 +348,11 @@ def create_archive(workspace: Path, base: Path | None = None) -> dict[str, Any]:
 
 
 def full_ops_cycle(workspace: Path, base: Path | None = None) -> dict[str, Any]:
-    """One-shot: integrity + unlock scan + github poll + candidates."""
+    """One-shot: integrity + unlock scan + github/x social + candidates."""
     base = base or workspace.parent
     integrity = integrity_check(workspace)
     github = github_poll(workspace)
+    social = social_watch(workspace)
     candidates = process_candidates(workspace)
     beat = heartbeat(workspace, base=base)
     cycle = {
@@ -359,11 +361,17 @@ def full_ops_cycle(workspace: Path, base: Path | None = None) -> dict[str, Any]:
         "unlock_signal": (integrity.get("unlock_scan") or {}).get("unlock_signal"),
         "github_alerts": github.get("alert_count"),
         "github_high": len(github.get("high_priority") or []),
+        "social_alerts": social.get("alert_count"),
+        "social_critical": social.get("critical_count"),
+        "social_high": social.get("high_count"),
+        "social_x_mode": social.get("x_mode"),
         "candidate_hits": candidates.get("hits"),
         "heartbeat": beat.get("message"),
+        "social_messages": social_telegram_messages(social),
         "details": {
             "integrity": str(workspace / "logs" / "integrity_report.json"),
             "github": str(workspace / "logs" / "github_poll.json"),
+            "social": str(workspace / "logs" / "social_watch.json"),
             "candidates": str(workspace / "logs" / "candidates_report.json"),
         },
     }

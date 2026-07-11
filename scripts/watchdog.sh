@@ -70,9 +70,10 @@ check_repo pvac_hfhe_cpp "$BASE/repos/pvac_hfhe_cpp" main
 check_repo smoke-ui "$BASE/repos/smoke-ui" main
 check_repo octra-recon "$BASE/repos/octra-recon" main
 
-# lightweight github API poll (keyword alerts)
+# GitHub + X/Twitter social intel (new commits, issues, writeups, posts)
 if [[ -x "$RECON" ]]; then
   "$RECON" ops github --workspace "$WS" >/dev/null 2>&1 || true
+  "$RECON" ops social --workspace "$WS" >/dev/null 2>&1 || true
 fi
 
 # daily heartbeat if older than 20h

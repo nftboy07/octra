@@ -18,6 +18,7 @@ from .ops import (
     integrity_check,
     process_candidates,
 )
+from .social_watch import social_telegram_messages, social_watch
 from .sources import ReconError, source_status, sync_sources
 from .surface import open_surface_status
 from .telegram import notify_telegram, telegram_status
@@ -100,9 +101,10 @@ def build_parser() -> argparse.ArgumentParser:
         ("integrity", "Daily integrity + LPN checksums + unlock scan"),
         ("heartbeat", "Status heartbeat message payload"),
         ("github", "Poll GitHub commits for keyword alerts"),
+        ("social", "Watch GitHub repos/issues/search + X/Twitter intel"),
         ("candidates", "Process candidates/inbox mnemonics"),
         ("archive", "Create compressed snapshot of logs/pins"),
-        ("cycle", "integrity + github + candidates + heartbeat"),
+        ("cycle", "integrity + github + social + candidates + heartbeat"),
     ):
         p = ops_sub.add_parser(name, help=help_text)
         _workspace_argument(p)
@@ -178,6 +180,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             return heartbeat(workspace, base=base)
         if args.ops_command == "github":
             return github_poll(workspace)
+        if args.ops_command == "social":
+            return social_watch(workspace)
         if args.ops_command == "candidates":
             return process_candidates(workspace)
         if args.ops_command == "archive":
@@ -214,6 +218,19 @@ def _notification_message(args: argparse.Namespace, result: dict[str, Any]) -> s
             if n:
                 return f"GITHUB {n} new commit(s) across watched repos"
             return None  # quiet if nothing new
+        if args.ops_command == "social":
+            msgs = social_telegram_messages(result, max_messages=1)
+            if result.get("critical_count"):
+                return f"SOCIAL CRITICAL x{result['critical_count']}: " + (msgs[0] if msgs else "see logs")
+            if result.get("high_count"):
+                return f"SOCIAL HIGH x{result['high_count']}: " + (msgs[0] if msgs else "see logs")
+            if msgs:
+                return msgs[0]
+            # first baseline run: short status once-ish via mode
+            mode = result.get("x_mode")
+            if mode and result.get("alert_count") == 0:
+                return None
+            return None
         if args.ops_command == "candidates":
             if result.get("hits"):
                 return f"CANDIDATE HIT count={result['hits']} — verify and claim path NOW"
@@ -223,15 +240,23 @@ def _notification_message(args: argparse.Namespace, result: dict[str, Any]) -> s
         if args.ops_command == "archive":
             return f"ARCHIVE created {result.get('archive')} size={result.get('size_bytes')}"
         if args.ops_command == "cycle":
-            if result.get("candidate_hits") or result.get("unlock_signal") or result.get("github_high"):
+            social_msgs = result.get("social_messages") or []
+            if result.get("social_critical") or result.get("candidate_hits") or result.get("unlock_signal"):
+                extra = social_msgs[0] if social_msgs else ""
                 return (
-                    f"OPS CYCLE unlock={result.get('unlock_signal')} "
-                    f"gh_high={result.get('github_high')} cand_hits={result.get('candidate_hits')} "
-                    f"integrity_ok={result.get('integrity_ok')}"
-                )
+                    f"OPS CYCLE ALERT unlock={result.get('unlock_signal')} "
+                    f"social_crit={result.get('social_critical')} social_high={result.get('social_high')} "
+                    f"cand_hits={result.get('candidate_hits')} {extra}"
+                )[:900]
+            if result.get("social_high") or result.get("github_high"):
+                extra = social_msgs[0] if social_msgs else ""
+                return (
+                    f"OPS CYCLE intel social_high={result.get('social_high')} "
+                    f"gh_high={result.get('github_high')} {extra}"
+                )[:900]
             return (
                 f"OPS CYCLE ok integrity={result.get('integrity_ok')} "
-                f"gh_alerts={result.get('github_alerts')} cand_hits=0"
+                f"social={result.get('social_alerts')} x_mode={result.get('social_x_mode')} cand_hits=0"
             )
 
     summary = "completed"
@@ -267,10 +292,28 @@ def main(argv: list[str] | None = None) -> int:
     try:
         result = run(args)
         message = _notification_message(args, result)
+        notifications: list[dict[str, str]] = []
         if message:
             notification = notify_telegram(message, required=args.command == "telegram")
             if notification is not None:
-                result["notification"] = notification
+                notifications.append(notification)
+        # social watch may produce multiple intel lines
+        if args.command == "ops" and getattr(args, "ops_command", None) == "social":
+            for extra in social_telegram_messages(result, max_messages=5):
+                if message and extra == message:
+                    continue
+                note = notify_telegram(extra, required=False)
+                if note is not None:
+                    notifications.append(note)
+        if args.command == "ops" and getattr(args, "ops_command", None) == "cycle":
+            for extra in (result.get("social_messages") or [])[:4]:
+                if message and extra in (message or ""):
+                    continue
+                note = notify_telegram(extra, required=False)
+                if note is not None:
+                    notifications.append(note)
+        if notifications:
+            result["notification"] = notifications[0] if len(notifications) == 1 else notifications
         _emit(result)
     except ReconError as error:
         parser.exit(2, f"error: {error}\n")

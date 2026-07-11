@@ -44,6 +44,8 @@ Type=oneshot
 User=ubuntu
 WorkingDirectory=${BASE}
 Environment=OCTRA_BASE=${BASE}
+EnvironmentFile=-/home/ubuntu/.config/octra-recon/social.env
+EnvironmentFile=-/home/ubuntu/.config/octra-recon/telegram.env
 ExecStart=/bin/bash ${BASE}/scripts/${script}
 Nice=10
 EOF

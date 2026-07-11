@@ -19,12 +19,15 @@ from .ops import (
     integrity_check,
     process_candidates,
 )
+from .claim import claim_pipeline, claim_telegram_blurb
+from .dashboard import build_dashboard
 from .race.residual import score_candidate_s
 from .race.suite import run_race_suite
 from .social_watch import social_telegram_messages, social_watch
 from .sources import ReconError, source_status, sync_sources
 from .surface import open_surface_status
 from .telegram import notify_telegram, telegram_status
+from .tg_commands import poll_once
 from .unlock_scan import scan_challenge_workspace, telegram_blurb
 from .wallet import TARGET_ADDRESS, check_mnemonic_against_target
 from .workspace import init_workspace, inventory_sources, require_workspace, write_json
@@ -124,6 +127,16 @@ def build_parser() -> argparse.ArgumentParser:
     race_score.add_argument("--holdout", default=None, help="Filename to treat as held-out test")
     race_score.add_argument("--max-rows", type=int, default=None, help="Optional per-file row cap")
 
+    claim = subparsers.add_parser("claim", help="Claim-first pipeline (unlock + S + mnemonic)")
+    claim_sub = claim.add_subparsers(dest="claim_command", required=True)
+    claim_run = claim_sub.add_parser("run", help="Run full claim pipeline once")
+    _workspace_argument(claim_run)
+
+    dash = subparsers.add_parser("dashboard", help="HTML race dashboard")
+    dash_sub = dash.add_subparsers(dest="dashboard_command", required=True)
+    dash_build = dash_sub.add_parser("build", help="Write reports/dashboard.html")
+    _workspace_argument(dash_build)
+
     ops = subparsers.add_parser("ops", help="24x7 integrity, heartbeat, github poll, candidates, archive")
     ops_sub = ops.add_subparsers(dest="ops_command", required=True)
     for name, help_text in (
@@ -143,6 +156,8 @@ def build_parser() -> argparse.ArgumentParser:
     telegram_subparsers.add_parser("status")
     telegram_test = telegram_subparsers.add_parser("test")
     telegram_test.add_argument("--message", default="Octra Recon Telegram integration is configured.")
+    telegram_poll = telegram_subparsers.add_parser("poll", help="Long-poll bot commands once")
+    _workspace_argument(telegram_poll)
     return parser
 
 
@@ -155,6 +170,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         return telegram_status()
     if args.command == "telegram" and args.telegram_command == "test":
         return {"channel": "telegram", "status": "test_requested"}
+    if args.command == "telegram" and args.telegram_command == "poll":
+        return poll_once(require_workspace(args.workspace))
     if args.command == "surface" and args.surface_command == "status":
         ws = args.workspace
         if ws is not None:
@@ -219,6 +236,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             holdout=args.holdout,
             max_rows_per_file=args.max_rows,
         )
+    if args.command == "claim" and args.claim_command == "run":
+        return claim_pipeline(workspace)
+    if args.command == "dashboard" and args.dashboard_command == "build":
+        return build_dashboard(workspace)
     if args.command == "ops":
         if args.ops_command == "integrity":
             return integrity_check(workspace)
@@ -348,6 +369,13 @@ def _notification_message(args: argparse.Namespace, result: dict[str, Any]) -> s
             summary = f"S verdict={result.get('verdict')} mean_residual={result.get('mean_residual_rate')}"
             if result.get("verdict") == "LIKELY_TRUE_SHARED_S":
                 summary = "CRITICAL " + summary
+    elif args.command == "claim":
+        blurb = claim_telegram_blurb(result)
+        if blurb:
+            return blurb
+        summary = f"claim_ready={result.get('claim_ready')} critical={len(result.get('critical') or [])}"
+    elif args.command == "dashboard":
+        summary = f"built {result.get('dashboard')}"
     return f"Octra Recon {args.command} {summary}."
 
 

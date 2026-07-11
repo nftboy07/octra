@@ -14,9 +14,17 @@ mkdir -p "${BASE}/scripts" "${BASE}/logs" "${BASE}/archives" \
   "${BASE}/reports"
 
 # copy scripts from toolkit repo
-for f in watchdog.sh integrity-daily.sh ops-cycle.sh archive-monthly.sh install-watchdog.sh install-ops.sh sync-to-vps.sh; do
+for f in watchdog.sh integrity-daily.sh ops-cycle.sh archive-monthly.sh install-watchdog.sh install-ops.sh sync-to-vps.sh \
+  body-bind-daily.sh claim-hourly.sh tg-poll.sh backup-logs.sh vps-update.sh intel-repos.sh harden-vps.sh final-verification.sh; do
   if [[ -f "${RECON_SCRIPTS}/${f}" ]]; then
     cp "${RECON_SCRIPTS}/${f}" "${BASE}/scripts/${f}"
+  fi
+done
+mkdir -p "${BASE}/workspace/candidates/s_inbox"
+# docs
+for d in UNLOCK_RUNBOOK.md SOCIAL_WATCH.md TOKENS_AND_AWS.md OUTPERFORM_WRITEUP.md; do
+  if [[ -f "${BASE}/repos/octra-recon/docs/${d}" ]]; then
+    cp -f "${BASE}/repos/octra-recon/docs/${d}" "${BASE}/reports/${d}"
   fi
 done
 # runbook
@@ -71,6 +79,11 @@ install_pair octra-watchdog "Octra git watchdog + github poll" watchdog.sh 2h 5m
 install_pair octra-integrity "Octra daily integrity" integrity-daily.sh 24h 15min
 install_pair octra-ops-cycle "Octra ops cycle" ops-cycle.sh 6h 10min
 install_pair octra-archive "Octra monthly archive" archive-monthly.sh 730h 30min
+install_pair octra-claim "Octra claim-first pipeline" claim-hourly.sh 1h 3min
+install_pair octra-bodybind "Octra LPN body-bind check" body-bind-daily.sh 24h 20min
+install_pair octra-backup "Octra log backup" backup-logs.sh 24h 40min
+# TG poll every 2 min via simple timer
+install_pair octra-tg-poll "Octra Telegram command poll" tg-poll.sh 120s 1min
 
 sudo systemctl daemon-reload
 
@@ -78,6 +91,8 @@ sudo systemctl daemon-reload
 sudo systemctl start octra-watchdog.service || true
 sudo systemctl start octra-integrity.service || true
 sudo systemctl start octra-ops-cycle.service || true
+sudo systemctl start octra-claim.service || true
+sudo systemctl start octra-tg-poll.service || true
 
 systemctl list-timers 'octra-*' --no-pager || true
 echo OPS_TIMERS_INSTALLED

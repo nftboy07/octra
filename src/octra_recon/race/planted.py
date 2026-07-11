@@ -114,10 +114,12 @@ def run_planted_suite(workspace: Path) -> dict[str, Any]:
     out_dir.mkdir(parents=True, exist_ok=True)
     results: list[dict[str, Any]] = []
 
-    # 1) residual separation at challenge-like tau
+    # 1) residual separation at challenge-like tau (+ larger battery)
     for n, m, tau, seed in (
         (64, 64 * 176, 0.125, 7),
         (128, 128 * 40, 0.125, 11),  # fewer m for speed on small VPS
+        (256, 256 * 20, 0.125, 13),  # outperform battery
+        (512, 512 * 10, 0.125, 17),  # heavier; still VPS-feasible
     ):
         s, rows = generate_planted(n, m, tau, seed=seed)
         # write temp jsonl-like for score_file compatibility needs hex a of fixed width

@@ -28,7 +28,7 @@ from .social_watch import social_telegram_messages, social_watch
 from .sources import ReconError, source_status, sync_sources
 from .surface import open_surface_status
 from .telegram import notify_telegram, telegram_status
-from .tg_commands import poll_once
+from .tg_commands import poll_loop, poll_once
 from .unlock_scan import scan_challenge_workspace, telegram_blurb
 from .wallet import TARGET_ADDRESS, check_mnemonic_against_target
 from .workspace import init_workspace, inventory_sources, require_workspace, write_json
@@ -164,6 +164,8 @@ def build_parser() -> argparse.ArgumentParser:
     telegram_test.add_argument("--message", default="Octra Recon Telegram integration is configured.")
     telegram_poll = telegram_subparsers.add_parser("poll", help="Long-poll bot commands once")
     _workspace_argument(telegram_poll)
+    telegram_loop = telegram_subparsers.add_parser("poll-loop", help="Long-poll forever (service mode)")
+    _workspace_argument(telegram_loop)
     return parser
 
 
@@ -178,6 +180,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         return {"channel": "telegram", "status": "test_requested"}
     if args.command == "telegram" and args.telegram_command == "poll":
         return poll_once(require_workspace(args.workspace))
+    if args.command == "telegram" and args.telegram_command == "poll-loop":
+        return poll_loop(require_workspace(args.workspace), cycles=0)
     if args.command == "surface" and args.surface_command == "status":
         ws = args.workspace
         if ws is not None:

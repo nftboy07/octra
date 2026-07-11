@@ -79,6 +79,20 @@ fi
 if [[ -x "$RECON" ]]; then
   # Prefer social (includes github); skip bare github if rate-limited recently
   "$RECON" ops social --workspace "$WS" >/dev/null 2>&1 || true
+  # Race: auto-score any candidate S dropped into s_inbox
+  S_INBOX="$WS/candidates/s_inbox"
+  mkdir -p "$S_INBOX"
+  for sf in "$S_INBOX"/*; do
+    [[ -f "$sf" ]] || continue
+    [[ "$(basename "$sf")" == .* ]] && continue
+    out=$("$RECON" race score-s --workspace "$WS" --s-file "$sf" 2>/dev/null || true)
+    if echo "$out" | grep -q LIKELY_TRUE_SHARED_S; then
+      notify "RACE CRITICAL: candidate S looks TRUE: $(basename "$sf") — claim path NOW"
+      mv "$sf" "$WS/candidates/hits/S_$(basename "$sf")" 2>/dev/null || true
+    else
+      mv "$sf" "$WS/candidates/processed/S_$(basename "$sf")" 2>/dev/null || true
+    fi
+  done
 fi
 
 # daily heartbeat if older than 20h

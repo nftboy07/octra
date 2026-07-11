@@ -19,6 +19,8 @@ from .ops import (
     integrity_check,
     process_candidates,
 )
+from .race.residual import score_candidate_s
+from .race.suite import run_race_suite
 from .social_watch import social_telegram_messages, social_watch
 from .sources import ReconError, source_status, sync_sources
 from .surface import open_surface_status
@@ -107,6 +109,21 @@ def build_parser() -> argparse.ArgumentParser:
     unlock_scan = unlock_sub.add_parser("scan", help="Scan challenge + artifacts trees")
     _workspace_argument(unlock_scan)
 
+    race = subparsers.add_parser("race", help="Competitive stack to outperform smoke-ui / claim race")
+    race_sub = race.add_subparsers(dest="race_command", required=True)
+    race_run = race_sub.add_parser("run", help="Planted + BKW grid + body bind + composition")
+    _workspace_argument(race_run)
+    race_run.add_argument(
+        "--full-audit",
+        action="store_true",
+        help="Also re-run full 44-file deep audit (slow)",
+    )
+    race_score = race_sub.add_parser("score-s", help="Score candidate LPN secret S on all samples")
+    _workspace_argument(race_score)
+    race_score.add_argument("--s-file", required=True, help="File or hex/bitstring of candidate S")
+    race_score.add_argument("--holdout", default=None, help="Filename to treat as held-out test")
+    race_score.add_argument("--max-rows", type=int, default=None, help="Optional per-file row cap")
+
     ops = subparsers.add_parser("ops", help="24x7 integrity, heartbeat, github poll, candidates, archive")
     ops_sub = ops.add_subparsers(dest="ops_command", required=True)
     for name, help_text in (
@@ -151,7 +168,13 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         result = init_workspace(workspace)
         # ensure ops directories
         ws = Path(result["workspace"])
-        for sub in ("candidates/inbox", "candidates/processed", "candidates/hits", "reports"):
+        for sub in (
+            "candidates/inbox",
+            "candidates/processed",
+            "candidates/hits",
+            "candidates/s_inbox",
+            "reports",
+        ):
             (ws / sub).mkdir(parents=True, exist_ok=True)
         return result
 
@@ -187,6 +210,15 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         return run_hypotheses(workspace, target=args.target)
     if args.command == "unlock" and args.unlock_command == "scan":
         return scan_challenge_workspace(workspace)
+    if args.command == "race" and args.race_command == "run":
+        return run_race_suite(workspace, skip_full_audit=not args.full_audit)
+    if args.command == "race" and args.race_command == "score-s":
+        return score_candidate_s(
+            workspace,
+            args.s_file,
+            holdout=args.holdout,
+            max_rows_per_file=args.max_rows,
+        )
     if args.command == "ops":
         if args.ops_command == "integrity":
             return integrity_check(workspace)
@@ -304,6 +336,18 @@ def _notification_message(args: argparse.Namespace, result: dict[str, Any]) -> s
         summary = f"match={result.get('match')}"
     elif args.command == "surface":
         summary = "open surface status emitted"
+    elif args.command == "race":
+        if args.race_command == "run":
+            sc = result.get("scorecard_vs_smoke_ui") or {}
+            summary = (
+                f"suite done planted={sc.get('planted_controls')} "
+                f"body_bind={sc.get('equation_body_commitment')} "
+                f"S_recovery={sc.get('commodity_S_recovery')}"
+            )
+        else:
+            summary = f"S verdict={result.get('verdict')} mean_residual={result.get('mean_residual_rate')}"
+            if result.get("verdict") == "LIKELY_TRUE_SHARED_S":
+                summary = "CRITICAL " + summary
     return f"Octra Recon {args.command} {summary}."
 
 

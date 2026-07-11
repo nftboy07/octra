@@ -119,6 +119,19 @@ configured, supported CLI commands send a short completion or failure notificati
 Run `telegram test` after starting a conversation with your bot or adding it to the
 target group/channel.
 
+## Race stack (outperform smoke-ui / claim speed)
+
+```bash
+octra-recon race run --workspace $W
+octra-recon race score-s --workspace $W --s-file candidates/s_inbox/s.hex
+# optional held-out:
+octra-recon race score-s --workspace $W --s-file s.hex --holdout ct21_l1_s0_pvac_prf_r_1.jsonl
+```
+
+Includes: planted residual controls, noiseless small-n recovery, restricted-sample
+BKW grid, equation-body commitments (stronger than official metadata-only binding),
+composition map (S vs prf_k), and auto-scoring of `candidates/s_inbox/` on the VPS.
+
 ## 24×7 operations (VPS)
 
 ```bash

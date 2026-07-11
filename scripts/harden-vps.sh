@@ -37,8 +37,8 @@ EOF
 
 echo "=== cron fallback (if systemd timer stalls) ==="
 # hourly light check: if watchdog events older than 6h, force watchdog
-CRON_LINE="17 * * * * OCTRA_BASE=${BASE} /bin/bash ${BASE}/scripts/watchdog.sh >> ${BASE}/logs/cron-watchdog.log 2>&1"
-( crontab -l 2>/dev/null | grep -v 'scripts/watchdog.sh' || true; echo "$CRON_LINE" ) | crontab -
+CRON_LINE="17 * * * * OCTRA_BASE=${BASE} /bin/bash ${BASE}/scripts/auto-update.sh >> ${BASE}/logs/cron-watchdog.log 2>&1"
+( crontab -l 2>/dev/null | grep -v 'scripts/auto-update.sh' || true; echo "$CRON_LINE" ) | crontab -
 crontab -l
 
 echo "=== ensure dirs ==="

@@ -14,7 +14,7 @@ mkdir -p "${BASE}/scripts" "${BASE}/logs" "${BASE}/archives" \
   "${BASE}/reports"
 
 # copy scripts from toolkit repo
-for f in watchdog.sh integrity-daily.sh ops-cycle.sh archive-monthly.sh install-watchdog.sh install-ops.sh sync-to-vps.sh \
+for f in watchdog.sh auto-update.sh integrity-daily.sh ops-cycle.sh archive-monthly.sh install-watchdog.sh install-ops.sh sync-to-vps.sh \
   body-bind-daily.sh claim-hourly.sh tg-poll.sh backup-logs.sh vps-update.sh intel-repos.sh harden-vps.sh final-verification.sh; do
   if [[ -f "${RECON_SCRIPTS}/${f}" ]]; then
     cp "${RECON_SCRIPTS}/${f}" "${BASE}/scripts/${f}"
@@ -75,19 +75,22 @@ EOF
   sudo systemctl enable --now "${name}.timer"
 }
 
-install_pair octra-watchdog "Octra git watchdog + github poll" watchdog.sh 2h 5min
+# Primary: full auto-update every 15 minutes (pulls code, artifacts, reacts)
+install_pair octra-auto "Octra FULL auto-update (no human)" auto-update.sh 15min 2min
+# Keep legacy names pointing at same auto path for compatibility
+install_pair octra-watchdog "Octra watchdog wrapper -> auto-update" watchdog.sh 30min 5min
 install_pair octra-integrity "Octra daily integrity" integrity-daily.sh 24h 15min
 install_pair octra-ops-cycle "Octra ops cycle" ops-cycle.sh 6h 10min
 install_pair octra-archive "Octra monthly archive" archive-monthly.sh 730h 30min
 install_pair octra-claim "Octra claim-first pipeline" claim-hourly.sh 1h 3min
 install_pair octra-bodybind "Octra LPN body-bind check" body-bind-daily.sh 24h 20min
 install_pair octra-backup "Octra log backup" backup-logs.sh 24h 40min
-# TG poll every 2 min via simple timer
 install_pair octra-tg-poll "Octra Telegram command poll" tg-poll.sh 120s 1min
 
 sudo systemctl daemon-reload
 
 # prime once
+sudo systemctl start octra-auto.service || true
 sudo systemctl start octra-watchdog.service || true
 sudo systemctl start octra-integrity.service || true
 sudo systemctl start octra-ops-cycle.service || true

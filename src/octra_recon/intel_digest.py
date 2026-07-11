@@ -183,7 +183,9 @@ def digest_all(workspace: Path, base: Path | None = None) -> dict[str, Any]:
     if digests:
         md_lines = [f"# Intel digest {_now()}", ""]
         for d in digests:
-            md_lines.append(f"## {d['name']} `{d.get('prev','?')[:7]}` → `{d['head'][:7]}`")
+            prev = (d.get("prev") or "?")[:7]
+            head = (d.get("head") or "?")[:7]
+            md_lines.append(f"## {d['name']} `{prev}` -> `{head}`")
             for c in d.get("commits") or []:
                 md_lines.append(f"- commit: {c}")
             for r in d.get("research") or []:
@@ -212,8 +214,10 @@ def telegram_messages(report: dict[str, Any], max_n: int = 4) -> list[str]:
         if d.get("research"):
             highlights = (d["research"][0].get("highlights") or "")[:180]
         flag = "BREAK?" if d.get("bounty_path_changed") else "null/no-break"
+        prev = (d.get("prev") or "")[:7]
+        head = (d.get("head") or "")[:7]
         msg = (
-            f"INTEL DIGEST [{flag}] {name} {d.get('prev','')[:7]}->{d.get('head','')[:7]} | "
+            f"INTEL DIGEST [{flag}] {name} {prev}->{head} | "
             f"{subj[:100]} | {highlights}"
         )
         msgs.append(" ".join(msg.split())[:900])

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .artifacts import detect_repeated_blocks, extract_params, verify_checksums
+from .lpn import inventory_lpn_samples, summarize_lpn, verify_lpn_checksums
 from .sources import ReconError, source_status, sync_sources
 from .telegram import notify_telegram, telegram_status
 from .workspace import init_workspace, inventory_sources, require_workspace, write_json
@@ -47,6 +48,29 @@ def build_parser() -> argparse.ArgumentParser:
     _workspace_argument(nonces)
     nonces.add_argument("--file", default="seed.ct", help="Artifact file name")
     nonces.add_argument("--block-size", type=int, default=16, help="Heuristic block width in bytes")
+
+    lpn = subparsers.add_parser("lpn", help="Read-only LPN sample inventory and checksum verification")
+    lpn_subparsers = lpn.add_subparsers(dest="lpn_command", required=True)
+    lpn_inv = lpn_subparsers.add_parser(
+        "inventory",
+        help="Parse LPN sample metadata, row counts, seed uniqueness, hardness notes",
+    )
+    _workspace_argument(lpn_inv)
+    lpn_inv.add_argument(
+        "--scan-y-bits",
+        action="store_true",
+        help="Stream y-bit statistics per file (slower; full 44-file scan)",
+    )
+    lpn_sums = lpn_subparsers.add_parser(
+        "verify",
+        help="Verify lpn_samples/* digests listed in SHA256SUMS",
+    )
+    _workspace_argument(lpn_sums)
+    lpn_sum = lpn_subparsers.add_parser(
+        "summary",
+        help="Compact inventory + checksum summary for the investigation log",
+    )
+    _workspace_argument(lpn_sum)
 
     telegram = subparsers.add_parser("telegram", help="Inspect or test optional Telegram notifications")
     telegram_subparsers = telegram.add_subparsers(dest="telegram_command", required=True)
@@ -91,6 +115,12 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         return extract_params(workspace)
     if args.command == "artifacts" and args.artifacts_command == "nonces":
         return detect_repeated_blocks(workspace, args.file, args.block_size)
+    if args.command == "lpn" and args.lpn_command == "inventory":
+        return inventory_lpn_samples(workspace, scan_y_bits=args.scan_y_bits)
+    if args.command == "lpn" and args.lpn_command == "verify":
+        return verify_lpn_checksums(workspace)
+    if args.command == "lpn" and args.lpn_command == "summary":
+        return summarize_lpn(workspace)
     raise ReconError("Unsupported command.")
 
 
@@ -105,6 +135,19 @@ def _notification_message(args: argparse.Namespace, result: dict[str, Any]) -> s
         summary = "completed: checksums verified" if result["ok"] else "completed: checksum mismatches found"
     elif args.command == "sources" and args.sources_command == "sync":
         summary = f"completed: {len(result['sources'])} sources synchronized"
+    elif args.command == "lpn":
+        if args.lpn_command == "summary":
+            summary = (
+                f"completed: inventory_ok={result.get('inventory_ok')} "
+                f"checksums_ok={result.get('checksums_ok')}"
+            )
+        elif args.lpn_command == "verify":
+            summary = "completed: LPN checksums ok" if result.get("ok") else "completed: LPN checksum issues"
+        else:
+            summary = (
+                f"completed: {result.get('file_count')} files, "
+                f"ok={result.get('ok')}"
+            )
     return f"Octra Recon {args.command} {summary}."
 
 

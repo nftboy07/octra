@@ -6,3 +6,8 @@ investigation/
 *.log
 telegram.env
 config/telegram.env
+
+src/*.egg-info/
+*.egg-info/
+.venv/
+

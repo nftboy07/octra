@@ -30,7 +30,8 @@ SOURCES: tuple[SourceSpec, ...] = (
     SourceSpec(
         name="hfhe-challenge",
         url="https://github.com/octra-labs/hfhe-challenge.git",
-        revision="v2_fix",
+        # Head includes July 11 LPN sample drop (d9d29d5 lineage); pin tag if v2_fix lags.
+        revision=None,
     ),
     SourceSpec(
         name="wallet-gen",

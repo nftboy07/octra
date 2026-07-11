@@ -43,6 +43,24 @@ prints JSON metadata and, when `powg_B` is a list, writes an indexed dump.
 protocol-aware nonce parser; its result must not be treated as a cryptographic
 finding without source-format validation.
 
+## LPN sample checks (July 11 drop)
+
+Place `lpn_samples/` under `artifacts/lpn_samples` or ensure
+`repos/hfhe-challenge/lpn_samples` exists after source sync. These commands only
+read sample metadata / hashes; they do not solve LPN or execute challenge C++.
+
+```powershell
+octra-recon lpn inventory --workspace .\investigation
+octra-recon lpn verify --workspace .\investigation
+octra-recon lpn summary --workspace .\investigation
+```
+
+`lpn inventory` checks file count (44), domain `pvac.prf.r.1`, parameters
+`n=4096`, `t=16384`, `tau=1/8`, seed uniqueness, and writes hardness notes.
+`lpn verify` checks `lpn_samples/*` digests listed in `SHA256SUMS`.
+Full metadata binding to `secret.ct` still requires compiling
+`source/tools/verify_lpn_sample_binding.cpp` against pinned `pvac_hfhe_cpp`.
+
 ## Tests
 
 ```powershell

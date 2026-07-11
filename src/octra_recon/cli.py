@@ -10,6 +10,7 @@ from typing import Any
 from .artifacts import detect_repeated_blocks, extract_params, verify_checksums
 from .hypotheses import run_hypotheses
 from .lpn import inventory_lpn_samples, summarize_lpn, verify_lpn_checksums
+from .lpn_audit import deep_audit
 from .ops import (
     create_archive,
     full_ops_cycle,
@@ -71,6 +72,17 @@ def build_parser() -> argparse.ArgumentParser:
     _workspace_argument(lpn_sums)
     lpn_sum = lpn_subparsers.add_parser("summary", help="Inventory + checksum summary")
     _workspace_argument(lpn_sum)
+    lpn_audit = lpn_subparsers.add_parser(
+        "audit",
+        help="Deep structural audit at smoke-ui parity (rank, dups, balance, schema)",
+    )
+    _workspace_argument(lpn_audit)
+    lpn_audit.add_argument(
+        "--max-files",
+        type=int,
+        default=None,
+        help="Optional limit for quick tests (omit for full 44-file audit)",
+    )
 
     wallet = subparsers.add_parser("wallet", help="Octra BIP39 address derivation / target check")
     wallet_sub = wallet.add_subparsers(dest="wallet_command", required=True)
@@ -169,6 +181,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         return verify_lpn_checksums(workspace)
     if args.command == "lpn" and args.lpn_command == "summary":
         return summarize_lpn(workspace)
+    if args.command == "lpn" and args.lpn_command == "audit":
+        return deep_audit(workspace, max_files=args.max_files)
     if args.command == "hypotheses" and args.hypotheses_command == "run":
         return run_hypotheses(workspace, target=args.target)
     if args.command == "unlock" and args.unlock_command == "scan":
@@ -274,6 +288,13 @@ def _notification_message(args: argparse.Namespace, result: dict[str, Any]) -> s
             )
         elif args.lpn_command == "verify":
             summary = "completed: LPN checksums ok" if result.get("ok") else "completed: LPN checksum issues"
+        elif args.lpn_command == "audit":
+            parity = result.get("smoke_ui_parity") or {}
+            summary = (
+                f"deep audit ok={result.get('ok')} "
+                f"smoke_ui_match={parity.get('matches_smoke_ui_A_ones')} "
+                f"ranks_full={parity.get('all_ranks_full')} dupA={result.get('dup_A')}"
+            )
         else:
             summary = f"completed: {result.get('file_count')} files, ok={result.get('ok')}"
     elif args.command == "hypotheses":

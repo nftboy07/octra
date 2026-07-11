@@ -72,6 +72,16 @@ octra-recon lpn summary --workspace .\investigation
 `lpn inventory` checks file count (44), domain `pvac.prf.r.1`, parameters
 `n=4096`, `t=16384`, `tau=1/8`, seed uniqueness, and writes hardness notes.
 `lpn verify` checks `lpn_samples/*` digests listed in `SHA256SUMS`.
+`lpn audit` runs a **smoke-ui–parity deep audit**: schema, filename coords,
+GF(2) rank(A)/rank([A|y]), exact global A-row duplicates (SQLite), bit-balance
+z-scores, aggregate match vs smoke-ui published ones-counts, and practical
+negative-result notes (S alone ≠ decrypt). Full run scans ~721MB and may take
+several minutes on a small VPS.
+
+```powershell
+octra-recon lpn audit --workspace .\investigation
+```
+
 Full metadata binding to `secret.ct` still requires compiling
 `source/tools/verify_lpn_sample_binding.cpp` against pinned `pvac_hfhe_cpp`.
 

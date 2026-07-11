@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from http.client import RemoteDisconnected
 import json
 import os
 import re
@@ -118,8 +119,11 @@ def _http_json(url: str, headers: dict[str, str] | None = None, timeout: float =
     if headers:
         hdrs.update(headers)
     req = Request(url, headers=hdrs)
-    with urlopen(req, timeout=timeout) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    try:
+        with urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except (HTTPError, URLError, TimeoutError, RemoteDisconnected, ConnectionResetError, OSError) as error:
+        raise URLError(str(error)) from error
 
 
 def _http_text(url: str, headers: dict[str, str] | None = None, timeout: float = 25.0) -> str:
@@ -127,8 +131,11 @@ def _http_text(url: str, headers: dict[str, str] | None = None, timeout: float =
     if headers:
         hdrs.update(headers)
     req = Request(url, headers=hdrs)
-    with urlopen(req, timeout=timeout) as resp:
-        return resp.read().decode("utf-8", errors="replace")
+    try:
+        with urlopen(req, timeout=timeout) as resp:
+            return resp.read().decode("utf-8", errors="replace")
+    except (HTTPError, URLError, TimeoutError, RemoteDisconnected, ConnectionResetError, OSError) as error:
+        raise URLError(str(error)) from error
 
 
 def _gh_headers() -> dict[str, str]:

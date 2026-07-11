@@ -79,3 +79,7 @@ sudo systemctl start octra-ops-cycle.service || true
 
 systemctl list-timers 'octra-*' --no-pager || true
 echo OPS_TIMERS_INSTALLED
+
+# optional harden if present
+if [[ -f ${BASE}/scripts/harden-vps.sh ]]; then bash ${BASE}/scripts/harden-vps.sh || true; fi
+

@@ -554,12 +554,18 @@ def social_telegram_messages(report: dict[str, Any], max_messages: int = 6) -> l
             if len(ordered) >= max_messages:
                 break
 
-    for a in ordered[:max_messages]:
+    for a in ordered:
+        if len(messages) >= max_messages:
+            break
         src = a.get("source", "?")
         pri = (a.get("priority") or "normal").upper()
+        repo = str(a.get("repo") or "")
+        # suppress self-noise from our own toolkit commits
+        if "nftboy07/octra" in repo:
+            continue
         if src.startswith("github"):
             msg = (
-                f"GH[{pri}] {a.get('repo', '')} "
+                f"GH[{pri}] {repo} "
                 f"{a.get('sha') or a.get('number') or ''} "
                 f"{a.get('message') or a.get('title') or ''} "
                 f"{a.get('url') or ''}"

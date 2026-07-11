@@ -162,6 +162,8 @@ if [[ -x "$RECON" ]]; then
 
   # always: social + claim + dashboard (cheap enough)
   "$RECON" ops social --workspace "$WS" >/dev/null 2>&1 || true
+  # Auto-digest competitor/research repo advances (no human paste of TG alerts)
+  "$RECON" intel digest --workspace "$WS" >/dev/null 2>&1 || true
   "$RECON" claim run --workspace "$WS" >/dev/null 2>&1 || true
   "$RECON" dashboard build --workspace "$WS" >/dev/null 2>&1 || true
 
@@ -183,6 +185,7 @@ if [[ -x "$RECON" ]]; then
     "$RECON" lpn summary --workspace "$WS" >/dev/null 2>&1 || true
     "$RECON" lpn verify --workspace "$WS" >/dev/null 2>&1 || true
     "$RECON" ops integrity --workspace "$WS" >/dev/null 2>&1 || true
+    "$RECON" intel digest --workspace "$WS" >/dev/null 2>&1 || true
     # body bind on LPN change
     if [[ "$lpn_changed" == "1" ]]; then
       bash "${BASE}/scripts/body-bind-daily.sh" >/dev/null 2>&1 || true
@@ -199,6 +202,11 @@ if [[ -x "$RECON" ]]; then
         disown || true
         notify "AUTO: deep LPN audit started in background"
       fi
+    fi
+    # competitor research change (smoke-ui etc.): re-pull intel + race notes
+    if grep -q smoke-ui "$STATE/changed_this_run.txt" 2>/dev/null; then
+      notify "AUTO: smoke-ui research moved — digest written; bounty path check running"
+      "$RECON" race run --workspace "$WS" >/dev/null 2>&1 || true
     fi
     "$RECON" claim run --workspace "$WS" >/dev/null 2>&1 || true
     notify "AUTO: reaction pipeline complete"

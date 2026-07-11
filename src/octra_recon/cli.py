@@ -21,6 +21,7 @@ from .ops import (
 )
 from .claim import claim_pipeline, claim_telegram_blurb
 from .dashboard import build_dashboard
+from .intel_digest import digest_all, telegram_messages as intel_telegram_messages
 from .race.residual import score_candidate_s
 from .race.suite import run_race_suite
 from .social_watch import social_telegram_messages, social_watch
@@ -137,6 +138,11 @@ def build_parser() -> argparse.ArgumentParser:
     dash_build = dash_sub.add_parser("build", help="Write reports/dashboard.html")
     _workspace_argument(dash_build)
 
+    intel = subparsers.add_parser("intel", help="Auto-digest competitor research (smoke-ui, etc.)")
+    intel_sub = intel.add_subparsers(dest="intel_command", required=True)
+    intel_digest = intel_sub.add_parser("digest", help="Digest new commits since last run")
+    _workspace_argument(intel_digest)
+
     ops = subparsers.add_parser("ops", help="24x7 integrity, heartbeat, github poll, candidates, archive")
     ops_sub = ops.add_subparsers(dest="ops_command", required=True)
     for name, help_text in (
@@ -240,6 +246,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         return claim_pipeline(workspace)
     if args.command == "dashboard" and args.dashboard_command == "build":
         return build_dashboard(workspace)
+    if args.command == "intel" and args.intel_command == "digest":
+        return digest_all(workspace, base=workspace.parent)
     if args.command == "ops":
         if args.ops_command == "integrity":
             return integrity_check(workspace)
@@ -376,6 +384,14 @@ def _notification_message(args: argparse.Namespace, result: dict[str, Any]) -> s
         summary = f"claim_ready={result.get('claim_ready')} critical={len(result.get('critical') or [])}"
     elif args.command == "dashboard":
         summary = f"built {result.get('dashboard')}"
+    elif args.command == "intel":
+        n = result.get("count") or 0
+        if n and result.get("any_bounty_path_change"):
+            return f"INTEL CRITICAL: {n} digest(s) may affect bounty path"
+        if n:
+            msgs = intel_telegram_messages(result, max_n=1)
+            return msgs[0] if msgs else f"INTEL DIGEST: {n} new research update(s)"
+        return None  # quiet if nothing new
     return f"Octra Recon {args.command} {summary}."
 
 
@@ -401,6 +417,13 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "ops" and getattr(args, "ops_command", None) == "cycle":
             for extra in (result.get("social_messages") or [])[:4]:
                 if message and extra in (message or ""):
+                    continue
+                note = notify_telegram(extra, required=False)
+                if note is not None:
+                    notifications.append(note)
+        if args.command == "intel" and getattr(args, "intel_command", None) == "digest":
+            for extra in intel_telegram_messages(result, max_n=4):
+                if message and extra == message:
                     continue
                 note = notify_telegram(extra, required=False)
                 if note is not None:

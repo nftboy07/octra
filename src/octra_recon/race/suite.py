@@ -7,7 +7,10 @@ from pathlib import Path
 from typing import Any
 
 from ..lpn_audit import deep_audit
+from ..mask_diff import run_mask_diff
+from ..rng_audit import run_rng_audit
 from ..unlock_scan import scan_challenge_workspace
+from ..wire_audit import run_wire_audit
 from ..workspace import write_json
 from .body_bind import body_binding_audit
 from .bkw_sweep import run_bkw_sweep
@@ -29,6 +32,9 @@ def run_race_suite(workspace: Path, *, skip_full_audit: bool = True) -> dict[str
     parts["bkw_sweep"] = run_bkw_sweep(workspace)
     parts["body_bind"] = body_binding_audit(workspace)
     parts["composition"] = composition_map(workspace)
+    parts["wire_audit"] = run_wire_audit(workspace)
+    parts["mask_diff"] = run_mask_diff(workspace)
+    parts["rng_audit"] = run_rng_audit(workspace)
     parts["unlock_scan"] = {
         "unlock_signal": scan_challenge_workspace(workspace).get("unlock_signal"),
     }
@@ -43,6 +49,7 @@ def run_race_suite(workspace: Path, *, skip_full_audit: bool = True) -> dict[str
         else:
             parts["deep_audit_cached"] = {"ok": None, "note": "run: octra-recon lpn audit"}
 
+    wire_ok = bool((parts["wire_audit"].get("summary") or {}).get("parse_ok"))
     report = {
         "started": started,
         "finished": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -55,6 +62,9 @@ def run_race_suite(workspace: Path, *, skip_full_audit: bool = True) -> dict[str
             "restricted_sample_BKW_grid": True,
             "equation_body_commitment": bool(parts["body_bind"].get("ok")),
             "composition_checklist": True,
+            "wire_bundle_parser": wire_ok,
+            "dual_mask_decision_matrix": True,
+            "wallet_gen_rng_audit": bool(parts["rng_audit"].get("ok") is not False),
             "24x7_unlock_race_infra": True,
             "commodity_S_recovery": False,
             "bounty_claimed": False,
@@ -64,6 +74,9 @@ def run_race_suite(workspace: Path, *, skip_full_audit: bool = True) -> dict[str
             "Body binding stronger than official metadata-only verifier",
             "Quantitative BKW feasibility grid under exact M",
             "Planted pipeline proves tooling; challenge scale still open",
+            "Native secret.ct wire parser (22 CT / 301-315 / dual BASE) without C++",
+            "Dual-mask + LPN domain decision matrix for claim race",
+            "Wallet-gen RNG static audit",
             "TG/watchdog aims to claim first on any unlock material",
         ],
     }

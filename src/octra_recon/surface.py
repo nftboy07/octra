@@ -106,8 +106,13 @@ def open_surface_status(workspace: Path | None = None) -> dict[str, Any]:
         "lab_capabilities": [
             "artifact integrity + LPN inventory/checksums/binding",
             "wallet address verifier (BIP39→Octra address)",
-            "cheap hypothesis screen",
+            "cheap hypothesis screen + GitHub-lexicon brainwallet hunter",
+            "secret.ct PVAC wire parser (bundle + dual BASE layers + length interval)",
+            "dual-mask differential + LPN domain decision matrix",
+            "wallet-gen RNG static audit",
+            "S residual scorer + claim pipeline",
             "git/TG watchdog for new material",
+            "full stack: octra-recon stack run",
         ],
     }
     if workspace is not None:

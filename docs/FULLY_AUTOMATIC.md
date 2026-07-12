@@ -50,3 +50,15 @@ This is **not** a full BIP39 dictionary (2048^12 / 2^128). Honest CSPRNG seed
 material will not be found this way. A hit would imply weak public-string
 entropy (extraordinary). Cache file: `workspace/logs/github_lexicon_tested.json`.
 TG: `/lexicon` for a quick pass; critical alert on any hit.
+
+## Full public-surface stack
+
+| Command | What |
+|---------|------|
+| `octra-recon wire audit` | Parse `secret.ct` (22 CT, dual BASE, 301–315 length INFO) |
+| `octra-recon mask diff` | Dual-mask model + LPN domain decision matrix |
+| `octra-recon rng audit` | wallet-gen `crypto.randomBytes` + artifact entropy |
+| `octra-recon stack run` | claim + wire + mask + rng + hypotheses + optional lexicon/race |
+
+Auto-update runs structural stack (`--no-lexicon --no-race`) every **6h** or on
+challenge/smoke-ui change. TG: `/wire` `/mask` `/rng` `/stack`.

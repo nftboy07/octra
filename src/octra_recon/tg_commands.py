@@ -12,9 +12,12 @@ from urllib.request import Request, urlopen
 
 from .claim import claim_pipeline
 from .github_lexicon import run_github_lexicon
+from .mask_diff import run_mask_diff
+from .rng_audit import run_rng_audit
 from .sources import ReconError
 from .telegram import load_telegram_settings
 from .unlock_scan import scan_challenge_workspace
+from .wire_audit import run_wire_audit
 from .workspace import write_json
 
 
@@ -70,7 +73,8 @@ def handle_command(workspace: Path, text: str) -> str:
         _normalize_cmd(p)
         for p in parts
         if p.startswith("/")
-        or p.lower() in ("status", "scan", "claim", "help", "start", "lexicon", "lex")
+        or p.lower()
+        in ("status", "scan", "claim", "help", "start", "lexicon", "lex", "wire", "mask", "rng", "stack")
     ]
     if not cmds:
         cmds = [_normalize_cmd(parts[0])]
@@ -115,12 +119,59 @@ def handle_command(workspace: Path, text: str) -> str:
                 f"bip39_tokens={lex.get('bip39_unique_in_corpus')} files={lex.get('files_read')}\n"
                 f"top={', '.join((lex.get('top_bip39') or [])[:12])}"
             )
+        elif cmd in ("/wire",):
+            w = run_wire_audit(workspace)
+            sm = w.get("summary") or {}
+            pl = sm.get("plaintext_interval") or {}
+            replies.append(
+                "WIRE\n"
+                f"parse_ok={sm.get('parse_ok')} cts={sm.get('cipher_count')}\n"
+                f"plaintext={pl.get('plaintext_bytes_min')}-{pl.get('plaintext_bytes_max')}\n"
+                f"alert={sm.get('alert')}\n"
+                f"findings={', '.join(f.get('id','') for f in (sm.get('findings') or []))}"
+            )
+        elif cmd in ("/mask",):
+            m = run_mask_diff(workspace)
+            replies.append(
+                "MASK\n"
+                f"status={m.get('status')}\n"
+                f"domains={(m.get('lpn_domains') or {}).get('domains_seen')}\n"
+                f"missing={(m.get('lpn_domains') or {}).get('missing_for_full_R')}\n"
+                f"unlock={(m.get('unlock') or {}).get('unlock_signal')}"
+            )
+        elif cmd in ("/rng",):
+            r = run_rng_audit(workspace)
+            replies.append(
+                "RNG\n"
+                f"ok={r.get('ok')} sources={r.get('wallet_gen_sources_found')}\n"
+                f"issues={'; '.join(r.get('critical_or_high') or [])[:300] or 'none'}"
+            )
+        elif cmd in ("/stack",):
+            # light structural only (no lexicon/race) so bot stays responsive
+            from .full_stack import run_full_stack
+
+            s = run_full_stack(
+                workspace,
+                include_lexicon=False,
+                include_race=False,
+                lexicon_max=0,
+            )
+            replies.append(
+                "STACK\n"
+                f"claim_ready={s.get('claim_ready')} unlock={s.get('unlock_signal')}\n"
+                f"wire={s.get('wire_parse_ok')} rng={s.get('rng_ok')} s_hits={s.get('s_hits')}\n"
+                f"alerts={len(s.get('alerts') or [])}"
+            )
         elif cmd in ("/help", "/start"):
             replies.append(
                 "Octra race bot\n"
                 "/status — claim pipeline\n"
                 "/scan — unlock scan\n"
                 "/claim — next actions\n"
+                "/wire — secret.ct structure\n"
+                "/mask — dual-mask matrix\n"
+                "/rng — wallet-gen RNG audit\n"
+                "/stack — full structural stack\n"
                 "/lexicon — GitHub-dict key hunt (quick)\n"
                 "/help — this text\n"
                 "Send commands as a direct message to this bot."

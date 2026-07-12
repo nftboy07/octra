@@ -10,8 +10,10 @@ from typing import Any
 from .artifacts import detect_repeated_blocks, extract_params, verify_checksums
 from .hypotheses import run_hypotheses
 from .github_lexicon import lexicon_telegram_blurb, run_github_lexicon
+from .full_stack import full_stack_telegram_blurb, run_full_stack
 from .lpn import inventory_lpn_samples, summarize_lpn, verify_lpn_checksums
 from .lpn_audit import deep_audit
+from .mask_diff import mask_diff_telegram_blurb, run_mask_diff
 from .ops import (
     create_archive,
     full_ops_cycle,
@@ -25,6 +27,7 @@ from .dashboard import build_dashboard
 from .intel_digest import digest_all, telegram_messages as intel_telegram_messages
 from .race.residual import score_candidate_s
 from .race.suite import run_race_suite
+from .rng_audit import rng_telegram_blurb, run_rng_audit
 from .social_watch import social_telegram_messages, social_watch
 from .sources import ReconError, source_status, sync_sources
 from .surface import open_surface_status
@@ -32,6 +35,7 @@ from .telegram import notify_telegram, telegram_status
 from .tg_commands import poll_loop, poll_once
 from .unlock_scan import scan_challenge_workspace, telegram_blurb
 from .wallet import TARGET_ADDRESS, check_mnemonic_against_target
+from .wire_audit import run_wire_audit, wire_telegram_blurb
 from .workspace import init_workspace, inventory_sources, require_workspace, write_json
 
 
@@ -142,6 +146,30 @@ def build_parser() -> argparse.ArgumentParser:
     surface_sub = surface.add_subparsers(dest="surface_command", required=True)
     surface_status = surface_sub.add_parser("status")
     surface_status.add_argument("--workspace", type=Path, default=None)
+
+    wire = subparsers.add_parser("wire", help="Parse/audit secret.ct PVAC bundle structure")
+    wire_sub = wire.add_subparsers(dest="wire_command", required=True)
+    wire_audit = wire_sub.add_parser("audit", help="Structural wire audit (dual-mask, length leak)")
+    _workspace_argument(wire_audit)
+
+    mask = subparsers.add_parser("mask", help="Dual-mask differential + LPN domain decision matrix")
+    mask_sub = mask.add_subparsers(dest="mask_command", required=True)
+    mask_diff = mask_sub.add_parser("diff", help="Re-validate dual-mask blockers + unlock matrix")
+    _workspace_argument(mask_diff)
+
+    rng = subparsers.add_parser("rng", help="Wallet-gen / artifact RNG static audit")
+    rng_sub = rng.add_subparsers(dest="rng_command", required=True)
+    rng_audit = rng_sub.add_parser("audit", help="Audit wallet-gen source + artifact entropy shape")
+    _workspace_argument(rng_audit)
+
+    stack = subparsers.add_parser("stack", help="Run every implementable public-surface check")
+    stack_sub = stack.add_subparsers(dest="stack_command", required=True)
+    stack_run = stack_sub.add_parser("run", help="claim+wire+mask+rng+hypotheses+lexicon+race")
+    _workspace_argument(stack_run)
+    stack_run.add_argument("--no-lexicon", action="store_true", help="Skip lexicon hunt")
+    stack_run.add_argument("--no-race", action="store_true", help="Skip race suite")
+    stack_run.add_argument("--lexicon-max", type=int, default=2000)
+    stack_run.add_argument("--full-audit", action="store_true", help="Include slow 44-file LPN audit in race")
 
     unlock = subparsers.add_parser("unlock", help="Scan for Rku/sk/new unlock artifacts")
     unlock_sub = unlock.add_subparsers(dest="unlock_command", required=True)
@@ -279,6 +307,20 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             max_files=args.max_files,
             deep=args.deep,
             skip_tested=not args.no_cache,
+        )
+    if args.command == "wire" and args.wire_command == "audit":
+        return run_wire_audit(workspace)
+    if args.command == "mask" and args.mask_command == "diff":
+        return run_mask_diff(workspace)
+    if args.command == "rng" and args.rng_command == "audit":
+        return run_rng_audit(workspace)
+    if args.command == "stack" and args.stack_command == "run":
+        return run_full_stack(
+            workspace,
+            include_lexicon=not args.no_lexicon,
+            include_race=not args.no_race,
+            lexicon_max=args.lexicon_max,
+            skip_full_audit=not args.full_audit,
         )
     if args.command == "unlock" and args.unlock_command == "scan":
         return scan_challenge_workspace(workspace)
@@ -419,6 +461,30 @@ def _notification_message(args: argparse.Namespace, result: dict[str, Any]) -> s
             f"bip39_tokens={result.get('bip39_unique_in_corpus')} "
             f"files={result.get('files_read')} mode={result.get('mode')}"
         )
+    elif args.command == "wire":
+        blurb = wire_telegram_blurb(result)
+        if blurb:
+            return blurb
+        sm = result.get("summary") or {}
+        summary = (
+            f"wire parse_ok={sm.get('parse_ok')} cts={sm.get('cipher_count')} "
+            f"alert={sm.get('alert')}"
+        )
+    elif args.command == "mask":
+        blurb = mask_diff_telegram_blurb(result)
+        if blurb:
+            return blurb
+        summary = f"mask status={result.get('status')} domains={(result.get('lpn_domains') or {}).get('domains_seen')}"
+    elif args.command == "rng":
+        blurb = rng_telegram_blurb(result)
+        if blurb:
+            return blurb
+        summary = f"rng ok={result.get('ok')} sources={result.get('wallet_gen_sources_found')}"
+    elif args.command == "stack":
+        blurb = full_stack_telegram_blurb(result)
+        if blurb:
+            return blurb
+        summary = f"stack claim={result.get('claim_ready')} alerts={len(result.get('alerts') or [])}"
     elif args.command == "wallet":
         summary = f"match={result.get('match')}"
     elif args.command == "surface":

@@ -171,7 +171,27 @@ if [[ -x "$RECON" ]]; then
   # Mines BIP39∩local clones + brainwallet hashes (NOT 2^128 brute force)
   LEX_ST="$STATE/last_lexicon"
   LEX_DEEP="$STATE/last_lexicon_deep"
+  STACK_ST="$STATE/last_stack"
   now_ts=$(date +%s)
+
+  # Structural public-surface stack (wire/mask/rng) every 6h or on change
+  run_stack=0
+  if [[ ! -f "$STACK_ST" ]] || [[ $(( now_ts - $(stat -c %Y "$STACK_ST" 2>/dev/null || echo 0) )) -gt 21600 ]]; then
+    run_stack=1
+  fi
+  if grep -qE 'smoke-ui|hfhe-challenge|pvac' "$STATE/changed_this_run.txt" 2>/dev/null; then
+    run_stack=1
+  fi
+  if [[ "$run_stack" == "1" ]]; then
+    log "full structural stack (no heavy lexicon/race)"
+    out=$("$RECON" stack run --workspace "$WS" --no-lexicon --no-race 2>/dev/null || true)
+    date -u +%Y-%m-%dT%H:%M:%SZ >"$STACK_ST"
+    if echo "$out" | grep -qiE 'claim_ready.: true|"alert": true|UNLOCK|CRITICAL|WIRE ALERT|RNG ALERT'; then
+      notify "AUTO STACK ALERT — check logs/full_stack.json and claim path"
+    else
+      log "stack structural ok"
+    fi
+  fi
   run_lex=0
   run_lex_deep=0
   if [[ ! -f "$LEX_ST" ]] || [[ $(( now_ts - $(stat -c %Y "$LEX_ST" 2>/dev/null || echo 0) )) -gt 21600 ]]; then

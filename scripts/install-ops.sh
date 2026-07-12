@@ -15,7 +15,8 @@ mkdir -p "${BASE}/scripts" "${BASE}/logs" "${BASE}/archives" \
 
 # copy scripts from toolkit repo
 for f in watchdog.sh auto-update.sh integrity-daily.sh ops-cycle.sh archive-monthly.sh install-watchdog.sh install-ops.sh sync-to-vps.sh \
-  body-bind-daily.sh claim-hourly.sh tg-poll.sh backup-logs.sh vps-update.sh intel-repos.sh harden-vps.sh final-verification.sh; do
+  body-bind-daily.sh claim-hourly.sh tg-poll.sh backup-logs.sh vps-update.sh intel-repos.sh harden-vps.sh final-verification.sh \
+  lexicon-daily.sh; do
   if [[ -f "${RECON_SCRIPTS}/${f}" ]]; then
     cp "${RECON_SCRIPTS}/${f}" "${BASE}/scripts/${f}"
   fi
@@ -85,6 +86,7 @@ install_pair octra-archive "Octra monthly archive" archive-monthly.sh 730h 30min
 install_pair octra-claim "Octra claim-first pipeline" claim-hourly.sh 1h 3min
 install_pair octra-bodybind "Octra LPN body-bind check" body-bind-daily.sh 24h 20min
 install_pair octra-backup "Octra log backup" backup-logs.sh 24h 40min
+install_pair octra-lexicon "Octra GitHub-lexicon deep hunt" lexicon-daily.sh 24h 50min
 install_pair octra-tg-poll "Octra Telegram command poll" tg-poll.sh 120s 1min
 
 sudo systemctl daemon-reload

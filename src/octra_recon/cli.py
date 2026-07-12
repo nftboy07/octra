@@ -9,6 +9,7 @@ from typing import Any
 
 from .artifacts import detect_repeated_blocks, extract_params, verify_checksums
 from .hypotheses import run_hypotheses
+from .github_lexicon import lexicon_telegram_blurb, run_github_lexicon
 from .lpn import inventory_lpn_samples, summarize_lpn, verify_lpn_checksums
 from .lpn_audit import deep_audit
 from .ops import (
@@ -102,6 +103,40 @@ def build_parser() -> argparse.ArgumentParser:
     hyp_run = hyp_sub.add_parser("run", help="Test a few hundred public/low-entropy candidates")
     _workspace_argument(hyp_run)
     hyp_run.add_argument("--target", default=TARGET_ADDRESS)
+
+    lexicon = subparsers.add_parser(
+        "lexicon",
+        help="GitHub-lexicon wallet hunter (mine local clones; not 2^128 brute force)",
+    )
+    lexicon_sub = lexicon.add_subparsers(dest="lexicon_command", required=True)
+    lexicon_run = lexicon_sub.add_parser(
+        "run",
+        help="Mine BIP39∩GitHub text + brainwallet hashes against target address",
+    )
+    _workspace_argument(lexicon_run)
+    lexicon_run.add_argument("--target", default=TARGET_ADDRESS)
+    lexicon_run.add_argument(
+        "--max-candidates",
+        type=int,
+        default=8_000,
+        help="Cap on new candidates to derive this run (~100ms each; default 8000 ≈15min)",
+    )
+    lexicon_run.add_argument(
+        "--max-files",
+        type=int,
+        default=8000,
+        help="Cap on text files to read from local clones",
+    )
+    lexicon_run.add_argument(
+        "--deep",
+        action="store_true",
+        help="Larger phrase set, triples, bip39 windows (slower, daily job)",
+    )
+    lexicon_run.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Ignore tested-cache and re-check everything",
+    )
 
     surface = subparsers.add_parser("surface", help="Open-surface status")
     surface_sub = surface.add_subparsers(dest="surface_command", required=True)
@@ -235,6 +270,16 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         return deep_audit(workspace, max_files=args.max_files)
     if args.command == "hypotheses" and args.hypotheses_command == "run":
         return run_hypotheses(workspace, target=args.target)
+    if args.command == "lexicon" and args.lexicon_command == "run":
+        return run_github_lexicon(
+            workspace,
+            target=args.target,
+            base=workspace.parent,
+            max_candidates=args.max_candidates,
+            max_files=args.max_files,
+            deep=args.deep,
+            skip_tested=not args.no_cache,
+        )
     if args.command == "unlock" and args.unlock_command == "scan":
         return scan_challenge_workspace(workspace)
     if args.command == "race" and args.race_command == "run":
@@ -365,6 +410,15 @@ def _notification_message(args: argparse.Namespace, result: dict[str, Any]) -> s
     elif args.command == "hypotheses":
         hits = result.get("hits", 0)
         summary = f"HIT count={hits}" if hits else f"completed: tested={result.get('tested')} hits=0"
+    elif args.command == "lexicon":
+        blurb = lexicon_telegram_blurb(result)
+        if blurb:
+            return blurb
+        summary = (
+            f"lexicon tested={result.get('tested')} hits={result.get('hits')} "
+            f"bip39_tokens={result.get('bip39_unique_in_corpus')} "
+            f"files={result.get('files_read')} mode={result.get('mode')}"
+        )
     elif args.command == "wallet":
         summary = f"match={result.get('match')}"
     elif args.command == "surface":

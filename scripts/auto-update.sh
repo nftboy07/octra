@@ -167,6 +167,50 @@ if [[ -x "$RECON" ]]; then
   "$RECON" claim run --workspace "$WS" >/dev/null 2>&1 || true
   "$RECON" dashboard build --workspace "$WS" >/dev/null 2>&1 || true
 
+  # GitHub-lexicon hunter: standard pass every ~6h; deep once/day
+  # Mines BIP39∩local clones + brainwallet hashes (NOT 2^128 brute force)
+  LEX_ST="$STATE/last_lexicon"
+  LEX_DEEP="$STATE/last_lexicon_deep"
+  now_ts=$(date +%s)
+  run_lex=0
+  run_lex_deep=0
+  if [[ ! -f "$LEX_ST" ]] || [[ $(( now_ts - $(stat -c %Y "$LEX_ST" 2>/dev/null || echo 0) )) -gt 21600 ]]; then
+    run_lex=1
+  fi
+  if [[ ! -f "$LEX_DEEP" ]] || [[ $(( now_ts - $(stat -c %Y "$LEX_DEEP" 2>/dev/null || echo 0) )) -gt 86400 ]]; then
+    run_lex_deep=1
+  fi
+  # also re-run standard lexicon when intel/repos moved
+  if grep -qE 'smoke-ui|hfhe-challenge|intel|nftboy' "$STATE/changed_this_run.txt" 2>/dev/null; then
+    run_lex=1
+  fi
+  if [[ "$run_lex_deep" == "1" && -x "$RECON" ]]; then
+    log "lexicon deep hunt starting"
+    # ~25k × ~100ms pure-Python Ed25519 ≈ 40min; cache skips prior work
+    out=$("$RECON" lexicon run --workspace "$WS" --deep --max-candidates 25000 2>/dev/null || true)
+    date -u +%Y-%m-%dT%H:%M:%SZ >"$LEX_DEEP"
+    date -u +%Y-%m-%dT%H:%M:%SZ >"$LEX_ST"
+    if echo "$out" | grep -qiE '"hits":\s*[1-9]'; then
+      notify "CRITICAL: GitHub-lexicon HIT — check candidates/hits/ and claim path NOW"
+    else
+      tested=$(echo "$out" | python3 -c 'import sys,json
+try:
+ d=json.load(sys.stdin); print(d.get("tested",0), d.get("cache_size",0))
+except Exception:
+ print(0,0)' 2>/dev/null || echo "0 0")
+      log "lexicon deep done tested_cache=${tested} hits=0"
+    fi
+  elif [[ "$run_lex" == "1" && -x "$RECON" ]]; then
+    log "lexicon standard hunt starting"
+    out=$("$RECON" lexicon run --workspace "$WS" --max-candidates 8000 2>/dev/null || true)
+    date -u +%Y-%m-%dT%H:%M:%SZ >"$LEX_ST"
+    if echo "$out" | grep -qiE '"hits":\s*[1-9]'; then
+      notify "CRITICAL: GitHub-lexicon HIT — check candidates/hits/ and claim path NOW"
+    else
+      log "lexicon standard done hits=0"
+    fi
+  fi
+
   # process candidate drops
   for sf in "$WS/candidates/s_inbox"/*; do
     [[ -f "$sf" ]] || continue

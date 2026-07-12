@@ -48,14 +48,22 @@ finding without source-format validation.
 ```powershell
 octra-recon wallet check --mnemonic "word1 word2 ... word12"
 octra-recon hypotheses run --workspace .\investigation
+octra-recon lexicon run --workspace .\investigation
+octra-recon lexicon run --workspace .\investigation --deep --max-candidates 25000
 octra-recon surface status --workspace .\investigation
 ```
 
 `wallet check` derives the Octra address (BIP39 → PBKDF2 → HMAC "Octra seed" →
 Ed25519 → `oct`+base58(SHA256(pubkey))) and compares to the bounty target.
 `hypotheses run` tests a few hundred low-entropy / public-string candidates only
-(not a 2^128 search). `surface status` records blocking pillars, LPN notes, and
-FURY applicability (no Rku in the public package at pin `071b0e9`).
+(not a 2^128 search). `lexicon run` mines **local GitHub clones** (intel forks,
+READMEs, text surfaces), intersects tokens with BIP39 English, builds
+brainwallet-style sha256/sha512 → 128-bit entropy candidates, and checks the
+target. It is **not** enumerating 2048^12. A tested-cache under
+`logs/github_lexicon_tested.json` advances the frontier across runs; hits land
+in `candidates/hits/` and fire Telegram. `surface status` records blocking
+pillars, LPN notes, and FURY applicability (no Rku in the public package at pin
+`071b0e9`).
 
 ## LPN sample checks (July 11 drop)
 

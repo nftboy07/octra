@@ -11,6 +11,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from .claim import claim_pipeline
+from .github_lexicon import run_github_lexicon
 from .sources import ReconError
 from .telegram import load_telegram_settings
 from .unlock_scan import scan_challenge_workspace
@@ -65,7 +66,12 @@ def handle_command(workspace: Path, text: str) -> str:
         return "empty. try /help"
     # support multi-command messages: "/status /claim"
     parts = raw.split()
-    cmds = [_normalize_cmd(p) for p in parts if p.startswith("/") or p.lower() in ("status", "scan", "claim", "help", "start")]
+    cmds = [
+        _normalize_cmd(p)
+        for p in parts
+        if p.startswith("/")
+        or p.lower() in ("status", "scan", "claim", "help", "start", "lexicon", "lex")
+    ]
     if not cmds:
         cmds = [_normalize_cmd(parts[0])]
 
@@ -92,12 +98,30 @@ def handle_command(workspace: Path, text: str) -> str:
             c = claim_pipeline(workspace)
             actions = c.get("next_actions") or ["nothing ready"]
             replies.append("CLAIM\n" + "\n".join(actions))
+        elif cmd in ("/lexicon", "/lex"):
+            # quick standard pass so TG stays responsive (~few minutes max cap)
+            lex = run_github_lexicon(
+                workspace,
+                base=workspace.parent,
+                max_candidates=1500,
+                deep=False,
+                skip_tested=True,
+            )
+            replies.append(
+                "LEXICON\n"
+                f"mode={lex.get('mode')}\n"
+                f"tested={lex.get('tested')} skipped={lex.get('skipped_already_tested')}\n"
+                f"hits={lex.get('hits')} cache={lex.get('cache_size')}\n"
+                f"bip39_tokens={lex.get('bip39_unique_in_corpus')} files={lex.get('files_read')}\n"
+                f"top={', '.join((lex.get('top_bip39') or [])[:12])}"
+            )
         elif cmd in ("/help", "/start"):
             replies.append(
                 "Octra race bot\n"
                 "/status — claim pipeline\n"
                 "/scan — unlock scan\n"
                 "/claim — next actions\n"
+                "/lexicon — GitHub-dict key hunt (quick)\n"
                 "/help — this text\n"
                 "Send commands as a direct message to this bot."
             )

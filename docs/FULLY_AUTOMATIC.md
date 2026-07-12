@@ -7,7 +7,8 @@
 | **octra-auto** | **15 min** | Pull toolkit + challenge + smoke-ui; sync artifacts; social; claim; on file change run unlock/LPN/integrity; deep audit if LPN changes; **GitHub-lexicon** standard hunt every 6h (or on intel change) |
 | octra-watchdog | 30 min | Same auto-update wrapper |
 | octra-claim | 1 h | Claim pipeline |
-| octra-tg-poll | 2 min | Bot commands `/status` `/scan` `/claim` `/lexicon` |
+| **octra-tg-bot** | **always** | Continuous bot: `/ping` `/wire` `/stack` `/mask` `/rng` `/status` … (cache-first, instant ACK) |
+| octra-tg-poll | disabled | Legacy oneshot poller (replaced by tg-bot) |
 | octra-bodybind | 24 h | Body commitment |
 | octra-integrity | 24 h | Integrity |
 | octra-lexicon | 24 h | Deep GitHub-lexicon hunt (BIP39∩local clones + brainwallet hashes) |

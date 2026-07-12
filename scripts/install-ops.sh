@@ -87,9 +87,37 @@ install_pair octra-claim "Octra claim-first pipeline" claim-hourly.sh 1h 3min
 install_pair octra-bodybind "Octra LPN body-bind check" body-bind-daily.sh 24h 20min
 install_pair octra-backup "Octra log backup" backup-logs.sh 24h 40min
 install_pair octra-lexicon "Octra GitHub-lexicon deep hunt" lexicon-daily.sh 24h 50min
-install_pair octra-tg-poll "Octra Telegram command poll" tg-poll.sh 120s 1min
+install_pair octra-tg-poll "Octra Telegram command poll (legacy oneshot)" tg-poll.sh 120s 1min
+
+# Prefer continuous TG poller (always listening; no 120s gaps)
+sudo tee /etc/systemd/system/octra-tg-bot.service >/dev/null <<EOF
+[Unit]
+Description=Octra Telegram bot continuous long-poll
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=${BASE}
+Environment=OCTRA_BASE=${BASE}
+EnvironmentFile=-/home/ubuntu/.config/octra-recon/social.env
+EnvironmentFile=-/home/ubuntu/.config/octra-recon/telegram.env
+ExecStart=/bin/bash ${BASE}/scripts/tg-poll.sh loop
+Restart=always
+RestartSec=5
+Nice=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
 
 sudo systemctl daemon-reload
+
+# stop legacy oneshot poller to avoid getUpdates 409; use continuous bot
+sudo systemctl disable --now octra-tg-poll.timer 2>/dev/null || true
+sudo systemctl stop octra-tg-poll.service 2>/dev/null || true
+sudo systemctl enable --now octra-tg-bot.service || true
 
 # prime once
 sudo systemctl start octra-auto.service || true
@@ -97,9 +125,9 @@ sudo systemctl start octra-watchdog.service || true
 sudo systemctl start octra-integrity.service || true
 sudo systemctl start octra-ops-cycle.service || true
 sudo systemctl start octra-claim.service || true
-sudo systemctl start octra-tg-poll.service || true
 
 systemctl list-timers 'octra-*' --no-pager || true
+systemctl is-active octra-tg-bot.service || true
 echo OPS_TIMERS_INSTALLED
 
 # optional harden if present

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .artifacts import detect_repeated_blocks, extract_params, verify_checksums
+from .challenge_days import challenge_day_status, day_telegram_blurb
 from .hypotheses import run_hypotheses
 from .github_lexicon import lexicon_telegram_blurb, run_github_lexicon
 from .full_stack import full_stack_telegram_blurb, run_full_stack
@@ -171,6 +172,11 @@ def build_parser() -> argparse.ArgumentParser:
     stack_run.add_argument("--lexicon-max", type=int, default=2000)
     stack_run.add_argument("--full-audit", action="store_true", help="Include slow 44-file LPN audit in race")
 
+    days = subparsers.add_parser("days", help="Official challenge day log (lambda0xE updates)")
+    days_sub = days.add_subparsers(dest="days_command", required=True)
+    days_status = days_sub.add_parser("status", help="Show curated Day N PASS/FAIL intel")
+    _workspace_argument(days_status)
+
     unlock = subparsers.add_parser("unlock", help="Scan for Rku/sk/new unlock artifacts")
     unlock_sub = unlock.add_subparsers(dest="unlock_command", required=True)
     unlock_scan = unlock_sub.add_parser("scan", help="Scan challenge + artifacts trees")
@@ -322,6 +328,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             lexicon_max=args.lexicon_max,
             skip_full_audit=not args.full_audit,
         )
+    if args.command == "days" and args.days_command == "status":
+        return challenge_day_status(workspace)
     if args.command == "unlock" and args.unlock_command == "scan":
         return scan_challenge_workspace(workspace)
     if args.command == "race" and args.race_command == "run":
@@ -485,6 +493,8 @@ def _notification_message(args: argparse.Namespace, result: dict[str, Any]) -> s
         if blurb:
             return blurb
         summary = f"stack claim={result.get('claim_ready')} alerts={len(result.get('alerts') or [])}"
+    elif args.command == "days":
+        return day_telegram_blurb(result)
     elif args.command == "wallet":
         summary = f"match={result.get('match')}"
     elif args.command == "surface":

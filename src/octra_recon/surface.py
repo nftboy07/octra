@@ -48,7 +48,23 @@ def open_surface_status(workspace: Path | None = None) -> dict[str, Any]:
                 "url": "https://eienel.github.io/hfhe-challenge-eienel/",
                 "summary": "LPN drop insufficient for decrypt without independent prf_k.",
             },
+            {
+                "id": "lambda_day3_timing",
+                "url": "https://x.com/lambda0xE/status/2076417278543835438",
+                "date": "2026-07-12",
+                "summary": (
+                    "DAY3 PASS: Apple Silicon pvac build; prf_R~15.3ms enc_value~43.4ms; "
+                    "skA vs skB constancy statistically equal → no sk-dependent timing leak, "
+                    "no remote exploit path. Next Day 4–5 algebra; Day 7 freeze if no simplify."
+                ),
+            },
         ],
+        "challenge_day_log": {
+            "latest_day": 3,
+            "latest_status": "DAY3_PASS",
+            "timing_side_channel": "closed_for_published_probe",
+            "see": "octra-recon days status",
+        },
         "pillars_blocking_bounty": [
             {
                 "id": "no_r_com",

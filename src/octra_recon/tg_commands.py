@@ -200,6 +200,8 @@ def handle_command(workspace: Path, text: str) -> str:
             "rng",
             "stack",
             "ping",
+            "days",
+            "day",
         )
     ]
     if not cmds:
@@ -232,6 +234,7 @@ def _handle_one(workspace: Path, cmd: str, *, fresh: bool) -> str:
             "/mask [fresh] — dual-mask matrix\n"
             "/rng [fresh] — wallet-gen RNG audit\n"
             "/stack [fresh] — full structural stack\n"
+            "/days — official Day N challenge log\n"
             "/lexicon — GitHub-dict key hunt (slow)\n"
             "/help — this text"
         )
@@ -354,6 +357,11 @@ def _handle_one(workspace: Path, cmd: str, *, fresh: bool) -> str:
             f"top={', '.join((lex.get('top_bip39') or [])[:12])}"
         )
 
+    if cmd in ("/days", "/day"):
+        from .challenge_days import challenge_day_status, day_telegram_blurb
+
+        return day_telegram_blurb(challenge_day_status(workspace))
+
     return f"unknown: {cmd}. try /help"
 
 
@@ -419,7 +427,7 @@ def poll_once(workspace: Path, state_path: Path | None = None) -> dict[str, Any]
         first = text.split()[0].lower().split("@", 1)[0]
         if not (first.startswith("/") or first in (
             "status", "scan", "claim", "help", "start", "ping",
-            "wire", "mask", "rng", "stack", "lexicon", "lex",
+            "wire", "mask", "rng", "stack", "lexicon", "lex", "days", "day",
         )):
             continue
 

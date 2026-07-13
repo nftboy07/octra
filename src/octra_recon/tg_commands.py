@@ -202,6 +202,7 @@ def handle_command(workspace: Path, text: str) -> str:
             "ping",
             "days",
             "day",
+            "exhaust",
         )
     ]
     if not cmds:
@@ -235,6 +236,7 @@ def _handle_one(workspace: Path, cmd: str, *, fresh: bool) -> str:
             "/rng [fresh] — wallet-gen RNG audit\n"
             "/stack [fresh] — full structural stack\n"
             "/days — official Day N challenge log\n"
+            "/exhaust — all public intel phrases vs wallet\n"
             "/lexicon — GitHub-dict key hunt (slow)\n"
             "/help — this text"
         )
@@ -362,6 +364,18 @@ def _handle_one(workspace: Path, cmd: str, *, fresh: bool) -> str:
 
         return day_telegram_blurb(challenge_day_status(workspace))
 
+    if cmd in ("/exhaust",):
+        from .intel_exhaust import run_intel_exhaust
+
+        # passphrases are slow; skip for TG responsiveness
+        s = run_intel_exhaust(workspace, also_passphrases=False)
+        return (
+            f"EXHAUST\n"
+            f"phrases={s.get('phrases_expanded')} tested={s.get('tested')}\n"
+            f"hits={s.get('hits')}\n"
+            f"{s.get('note')}"
+        )
+
     return f"unknown: {cmd}. try /help"
 
 
@@ -427,7 +441,7 @@ def poll_once(workspace: Path, state_path: Path | None = None) -> dict[str, Any]
         first = text.split()[0].lower().split("@", 1)[0]
         if not (first.startswith("/") or first in (
             "status", "scan", "claim", "help", "start", "ping",
-            "wire", "mask", "rng", "stack", "lexicon", "lex", "days", "day",
+            "wire", "mask", "rng", "stack", "lexicon", "lex", "days", "day", "exhaust",
         )):
             continue
 

@@ -129,6 +129,18 @@ _SEED_PHRASES = (
     "LPN",
     "smoke-ui",
     "nftboy07",
+    # user-provided tweet / circle intel
+    "unbothered. moisturized. happy. in my lane. focused. flourishing.",
+    "unbothered moisturized happy in my lane focused flourishing",
+    "ephemeral instance",
+    "distributed fheOS",
+    "fheOS",
+    "circle_info",
+    "no permanent host",
+    "tomismeta",
+    "octra-sqlite",
+    "DAY3_PASS",
+    "wasm_v1",
 )
 
 _WORD_RE = re.compile(r"[A-Za-z][A-Za-z']{1,24}")

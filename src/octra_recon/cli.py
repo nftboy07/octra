@@ -12,6 +12,7 @@ from .challenge_days import challenge_day_status, day_telegram_blurb
 from .hypotheses import run_hypotheses
 from .github_lexicon import lexicon_telegram_blurb, run_github_lexicon
 from .full_stack import full_stack_telegram_blurb, run_full_stack
+from .intel_exhaust import exhaust_telegram_blurb, run_intel_exhaust
 from .lpn import inventory_lpn_samples, summarize_lpn, verify_lpn_checksums
 from .lpn_audit import deep_audit
 from .mask_diff import mask_diff_telegram_blurb, run_mask_diff
@@ -177,6 +178,23 @@ def build_parser() -> argparse.ArgumentParser:
     days_status = days_sub.add_parser("status", help="Show curated Day N PASS/FAIL intel")
     _workspace_argument(days_status)
 
+    exhaust = subparsers.add_parser(
+        "exhaust",
+        help="Test ALL public intel phrases as brainwallet/passphrase candidates",
+    )
+    exhaust_sub = exhaust.add_subparsers(dest="exhaust_command", required=True)
+    exhaust_run = exhaust_sub.add_parser(
+        "run",
+        help="Tweets + circle fields + day3 + challenge strings vs target address",
+    )
+    _workspace_argument(exhaust_run)
+    exhaust_run.add_argument("--target", default=TARGET_ADDRESS)
+    exhaust_run.add_argument(
+        "--no-passphrases",
+        action="store_true",
+        help="Skip passphrase-on-zero-mnemonic checks (faster)",
+    )
+
     unlock = subparsers.add_parser("unlock", help="Scan for Rku/sk/new unlock artifacts")
     unlock_sub = unlock.add_subparsers(dest="unlock_command", required=True)
     unlock_scan = unlock_sub.add_parser("scan", help="Scan challenge + artifacts trees")
@@ -330,6 +348,12 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         )
     if args.command == "days" and args.days_command == "status":
         return challenge_day_status(workspace)
+    if args.command == "exhaust" and args.exhaust_command == "run":
+        return run_intel_exhaust(
+            workspace,
+            target=args.target,
+            also_passphrases=not args.no_passphrases,
+        )
     if args.command == "unlock" and args.unlock_command == "scan":
         return scan_challenge_workspace(workspace)
     if args.command == "race" and args.race_command == "run":
@@ -495,6 +519,14 @@ def _notification_message(args: argparse.Namespace, result: dict[str, Any]) -> s
         summary = f"stack claim={result.get('claim_ready')} alerts={len(result.get('alerts') or [])}"
     elif args.command == "days":
         return day_telegram_blurb(result)
+    elif args.command == "exhaust":
+        blurb = exhaust_telegram_blurb(result)
+        if blurb:
+            return blurb
+        summary = (
+            f"exhaust tested={result.get('tested')} hits={result.get('hits')} "
+            f"phrases={result.get('phrases_expanded')}"
+        )
     elif args.command == "wallet":
         summary = f"match={result.get('match')}"
     elif args.command == "surface":

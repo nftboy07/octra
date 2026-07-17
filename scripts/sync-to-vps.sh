@@ -5,17 +5,27 @@ set -euo pipefail
 BASE=/home/ubuntu/octra_investigation
 mkdir -p "$BASE"/{artifacts,logs,reports,repos,workspace}
 
+require_clean_repo() {
+  local name="$1"
+  local path="$2"
+  if [[ -n "$(git -C "$path" status --porcelain --untracked-files=all)" ]]; then
+    echo "Refusing to update ${name}: checkout has local or untracked files." >&2
+    return 1
+  fi
+}
+
 echo "=== SYNC octra-recon (toolkit) ==="
 cd "$BASE/repos/octra-recon"
+require_clean_repo octra-recon "$PWD"
 git fetch origin
 git reset --hard origin/main
-git clean -fd -e .venv 2>/dev/null || true
 rm -rf src/octra_recon.egg-info
 git log -1 --oneline
 git status -sb
 
 echo "=== SYNC hfhe-challenge ==="
 cd "$BASE/repos/hfhe-challenge"
+require_clean_repo hfhe-challenge "$PWD"
 git fetch origin
 if ! git pull --ff-only; then
   git reset --hard origin/main
@@ -24,12 +34,14 @@ git log -1 --oneline
 
 echo "=== SYNC pvac_hfhe_cpp (pin 071b0e9) ==="
 cd "$BASE/repos/pvac_hfhe_cpp"
+require_clean_repo pvac_hfhe_cpp "$PWD"
 git fetch origin
 git checkout 071b0e909c119de815e284b347c4bd979cb59ef3
 git log -1 --oneline
 
 echo "=== SYNC smoke-ui ==="
 cd "$BASE/repos/smoke-ui"
+require_clean_repo smoke-ui "$PWD"
 git fetch origin
 if ! git pull --ff-only; then
   git reset --hard origin/main

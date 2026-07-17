@@ -7,6 +7,15 @@ RECON_REPO="${BASE}/repos/octra-recon"
 RECON="${RECON_REPO}/.venv/bin/octra-recon"
 WS="${BASE}/workspace"
 
+require_clean_repo() {
+  local name="$1"
+  local path="$2"
+  if [[ -n "$(git -C "$path" status --porcelain --untracked-files=all)" ]]; then
+    echo "Refusing to update ${name}: checkout has local or untracked files." >&2
+    return 1
+  fi
+}
+
 echo "=== $(date -u +%Y-%m-%dT%H:%M:%SZ) VPS UPDATE START ==="
 
 mkdir -p "${BASE}/scripts" "${BASE}/logs" "${BASE}/reports" "${BASE}/archives" \
@@ -15,6 +24,7 @@ mkdir -p "${BASE}/scripts" "${BASE}/logs" "${BASE}/reports" "${BASE}/archives" \
 
 echo "=== pull toolkit ==="
 cd "${RECON_REPO}"
+require_clean_repo octra-recon "${RECON_REPO}"
 git fetch origin
 git reset --hard origin/main
 if [[ ! -d .venv ]]; then

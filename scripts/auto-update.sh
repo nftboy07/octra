@@ -47,28 +47,42 @@ note_change() {
   return 1
 }
 
+require_clean_repo() {
+  local name="$1"
+  local path="$2"
+  local status
+  status=$(git -C "$path" status --porcelain --untracked-files=all 2>/dev/null || true)
+  if [[ -n "$status" ]]; then
+    log "REFUSE ${name} update: checkout has local or untracked files"
+    return 1
+  fi
+  return 0
+}
+
 # --- 1) Self-update toolkit FIRST so later steps use new code ---
 if [[ -d "${RECON_REPO}/.git" ]]; then
-  old=$(git -C "$RECON_REPO" rev-parse HEAD 2>/dev/null || echo "")
-  git -C "$RECON_REPO" fetch origin --quiet 2>/dev/null || true
-  git -C "$RECON_REPO" reset --hard origin/main --quiet 2>/dev/null || true
-  new=$(git -C "$RECON_REPO" rev-parse HEAD 2>/dev/null || echo "")
-  if note_change toolkit "$old" "$new"; then
-    notify "AUTO: toolkit updated ${old:0:7}->${new:0:7}. Reinstalling..."
-    if [[ ! -d "${RECON_REPO}/.venv" ]]; then
-      python3 -m venv "${RECON_REPO}/.venv" || true
-    fi
-    "${RECON_REPO}/.venv/bin/pip" install -q -e "${RECON_REPO}" || true
-    # refresh scripts + reinstall timers (idempotent)
-    cp -f "${RECON_REPO}/scripts/"*.sh "${BASE}/scripts/" 2>/dev/null || true
-    sed -i 's/\r$//' "${BASE}/scripts/"*.sh 2>/dev/null || true
-    chmod +x "${BASE}/scripts/"*.sh 2>/dev/null || true
-    for d in UNLOCK_RUNBOOK.md SOCIAL_WATCH.md TOKENS_AND_AWS.md OUTPERFORM_WRITEUP.md; do
-      [[ -f "${RECON_REPO}/docs/${d}" ]] && cp -f "${RECON_REPO}/docs/${d}" "${BASE}/reports/${d}" || true
-    done
-    # only reinstall systemd if install-ops present (needs sudo nopasswd which ubuntu has)
-    if [[ -x "${BASE}/scripts/install-ops.sh" ]]; then
-      bash "${BASE}/scripts/install-ops.sh" >/dev/null 2>&1 || true
+  if require_clean_repo toolkit "$RECON_REPO"; then
+    old=$(git -C "$RECON_REPO" rev-parse HEAD 2>/dev/null || echo "")
+    git -C "$RECON_REPO" fetch origin --quiet 2>/dev/null || true
+    git -C "$RECON_REPO" reset --hard origin/main --quiet 2>/dev/null || true
+    new=$(git -C "$RECON_REPO" rev-parse HEAD 2>/dev/null || echo "")
+    if note_change toolkit "$old" "$new"; then
+      notify "AUTO: toolkit updated ${old:0:7}->${new:0:7}. Reinstalling..."
+      if [[ ! -d "${RECON_REPO}/.venv" ]]; then
+        python3 -m venv "${RECON_REPO}/.venv" || true
+      fi
+      "${RECON_REPO}/.venv/bin/pip" install -q -e "${RECON_REPO}" || true
+      # refresh scripts + reinstall timers (idempotent)
+      cp -f "${RECON_REPO}/scripts/"*.sh "${BASE}/scripts/" 2>/dev/null || true
+      sed -i 's/\r$//' "${BASE}/scripts/"*.sh 2>/dev/null || true
+      chmod +x "${BASE}/scripts/"*.sh 2>/dev/null || true
+      for d in UNLOCK_RUNBOOK.md SOCIAL_WATCH.md TOKENS_AND_AWS.md OUTPERFORM_WRITEUP.md; do
+        [[ -f "${RECON_REPO}/docs/${d}" ]] && cp -f "${RECON_REPO}/docs/${d}" "${BASE}/reports/${d}" || true
+      done
+      # only reinstall systemd if install-ops present (needs sudo nopasswd which ubuntu has)
+      if [[ -x "${BASE}/scripts/install-ops.sh" ]]; then
+        bash "${BASE}/scripts/install-ops.sh" >/dev/null 2>&1 || true
+      fi
     fi
   fi
 fi

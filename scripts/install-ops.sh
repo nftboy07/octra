@@ -119,12 +119,12 @@ sudo systemctl disable --now octra-tg-poll.timer 2>/dev/null || true
 sudo systemctl stop octra-tg-poll.service 2>/dev/null || true
 sudo systemctl enable --now octra-tg-bot.service || true
 
-# prime once
-sudo systemctl start octra-auto.service || true
-sudo systemctl start octra-watchdog.service || true
-sudo systemctl start octra-integrity.service || true
-sudo systemctl start octra-ops-cycle.service || true
-sudo systemctl start octra-claim.service || true
+# Prime once without blocking this installer on long-running oneshot jobs.
+sudo systemctl start --no-block octra-auto.service || true
+sudo systemctl start --no-block octra-watchdog.service || true
+sudo systemctl start --no-block octra-integrity.service || true
+sudo systemctl start --no-block octra-ops-cycle.service || true
+sudo systemctl start --no-block octra-claim.service || true
 
 systemctl list-timers 'octra-*' --no-pager || true
 systemctl is-active octra-tg-bot.service || true

@@ -1,6 +1,6 @@
 # HFHE Challenge v2 Status
 
-Checked: 2026-07-17
+Checked: 2026-07-18
 
 Target payout address:
 
@@ -59,6 +59,15 @@ Built and ran on the VPS against the pinned public source:
 - Cheap active-artifact hypotheses: 75 tested, 0 hits
 - Read-only `unlock scan`: no new critical/high material
 - Read-only `surface status`: no Rku, second ciphertext, wire leak, or key material
+- Derived PRF-nonce audit: 264 values across six PRF domains, 0 collisions
+- Full public Git history audit: no private artifact path, unreachable object, or
+  reusable active key material
+
+The active generator calls the random `keygen` path. It samples four fresh
+`csprng_u64()` words for `prf_k`; the wallet-seeded `keygen_from_seed` path is
+not used by the challenge generator. Historical v2 commits also contain
+different public-key blobs, so an older public artifact does not reuse the
+active HFHE secret state.
 
 The current blocker is therefore cryptographic recovery of the hidden PRF
 material, not deployment or repository synchronization. The next actionable

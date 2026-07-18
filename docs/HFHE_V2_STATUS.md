@@ -21,7 +21,7 @@ encryption.
 - Challenge commit: `019380c` (`clarify lpn samples`)
 - PVAC commit: `071b0e9` (`public matrix sampling`)
 - Ciphertext SHA-256: `5da7f82724838bf7a8c4fe95fbf6d573b621c04c9b2f7ae849545cf60223fbab`
-- Public key SHA-256: `1e788edff9dea19a782480f5d7f668dcce998a0f657eaae2c4c61433c9993dc82`
+- Public key SHA-256: `1e788edff9dea19a782defae053f3757ccf5edd41cd3e24ae44e1496045e9410`
 - Ciphertext structure: 22 wrapped objects, 44 BASE layers, 1,829 edges
 - Public length interval: 301-315 bytes, from the 22-object framing
 - Current VPS LPN inventory: 44 files and 720,896 sample rows

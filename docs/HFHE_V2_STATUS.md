@@ -62,6 +62,10 @@ Built and ran on the VPS against the pinned public source:
 - Derived PRF-nonce audit: 264 values across six PRF domains, 0 collisions
 - Full public Git history audit: no private artifact path, unreachable object, or
   reusable active key material
+- Intel exhaust (tweets/circle/day3/docs phrases): 377 phrases, 1965 derivations, **0 hits**
+- GitHub lexicon hunter: continuous cache-frontier on VPS; no wallet match
+- Intel mirror: 60+ clones under `repos/intel/` (octra-labs + lambda0xE + research)
+- Continuous Telegram bot (`octra-tg-bot`) with cache-first `/wire` `/stack` `/exhaust`
 
 The active generator calls the random `keygen` path. It samples four fresh
 `csprng_u64()` words for `prf_k`; the wallet-seeded `keygen_from_seed` path is

@@ -1,0 +1,68 @@
+# Intel repo mirror
+
+Generated: 2026-07-28T14:46:56.891366Z
+Count: **63**
+
+- `fork_0xTaaa_hfhe-challenge` `019380c97543` — clarify lpn samples
+- `fork_0xjagadbumi_hfhe-challenge` `0d08e9622921` — Update README.md
+- `fork_Eienel_hfhe-challenge-eienel` `efb24174ac4c` — Fold in 019380c clarification, constant-time audit, second corroboration
+- `fork_Giri-Aayush_hfhe-challenge` `0d08e9622921` — Update README.md
+- `fork_JH-321_hfhe-challenge-1` `0d08e9622921` — Update README.md
+- `fork_Prot420_hfhe-challenge` `019380c97543` — clarify lpn samples
+- `fork_SNAKBILLION_hfhe-challenge` `d9d29d505e28` — add lpn samples
+- `fork_TonyLegend-77_hfhe-challenge` `0d08e9622921` — Update README.md
+- `fork_Vibibiys_hfhe-challenge` `019380c97543` — clarify lpn samples
+- `fork_Yanu403_hfhe-challenge` `5e25d305429d` — Update README to clarify challenge details
+- `fork_akidry_hfhe-challenge` `0d08e9622921` — Update README.md
+- `fork_emma31-dev_hfhe-challenge` `0d08e9622921` — Update README.md
+- `fork_erlanggada_hfhe-challenge` `019380c97543` — clarify lpn samples
+- `fork_franciskim_hfhe-challenge` `019380c97543` — clarify lpn samples
+- `fork_ifeoluwaaj_hfhe-challenge` `0d08e9622921` — Update README.md
+- `fork_jigggyzigggy_hfhe-challenge` `0d08e9622921` — Update README.md
+- `fork_k3llgh_hfhe-challenge` `0d08e9622921` — Update README.md
+- `fork_nxpath_hfhe-challenge` `8a8df807bc12` — Add plaintext recovery tools and analysis framework for HFHE challenge v2
+- `fork_pymparticles_hfhe-challenge` `6d845e07f82c` — Revise README for HFHE Challenge v2
+- `fork_vansham_hfhe-challenge` `d9d29d505e28` — add lpn samples
+- `fork_zhaoge7786_hfhe-challenge` `019380c97543` — clarify lpn samples
+- `hfhe-challenge` `019380c97543` — clarify lpn samples
+- `lambda0xE_0x0FFH` `?` — ?
+- `lambda0xE_23gate` `3ec60d8ea837` — Add blast network
+- `lambda0xE_BLAKE3` `67e4d04a3c02` — version 1.3.3
+- `lambda0xE_Zmap-ProxyScanner` `a4e483b12822` — Update README.md
+- `lambda0xE_blake2_simd` `1dfcf325200c` — version 1.0.2
+- `lambda0xE_bqskit` `89798fa343bf` — Merge pull request #359 from BQSKit/fix-compile-list
+- `lambda0xE_chokidar` `0f163b89f3ae` — Enable GitHub Sponsors
+- `lambda0xE_coq` `d889bc6559a7` — Create vectors.ml
+- `lambda0xE_coq-lsp` `5df1e773ec5b` — Merge pull request #402 from ejgallego/fix_react_hyp
+- `lambda0xE_eml` `c2e8a95dd4c1` — initial commit
+- `lambda0xE_gt` `?` — ?
+- `lambda0xE_lambda0xE` `?` — ?
+- `lambda0xE_localsolana` `d5f4dd51bed8` — ensure to initialize escrow account before withdrawal
+- `lambda0xE_localsolana-contracts` `412b9862f5eb` — add docs
+- `lambda0xE_localsolana-site` `a3a4bb5e0bbc` — fix vulns
+- `lambda0xE_localsolana_api` `1c91ff278ccb` — turn off auto order cancellation
+- `lambda0xE_localsolana_contracts` `316ab75e9c1e` — Initial commit
+- `lambda0xE_ocaml-iomux` `ed702ca25aa1` — Disable macos for now as it doesn't have ppoll.
+- `lambda0xE_octra-groth16-bn254` `d5c9a7a1ecaf` — octra groth16
+- `lambda0xE_openpeer` `bb406d3d2498` — clarify fees
+- `lambda0xE_openpeer_contracts` `34f8d24e92f4` — Use safeTransfer instead of require in the transfer return to avoid USDT bugs
+- `lambda0xE_pvac_hfhe_cpp` `087ff245de76` — init: pvac-hfhe poc
+- `lambda0xE_reason` `7592a8f5df61` — Merge pull request #2674 from davesnx/fix-extensions
+- `lambda0xE_stem` `d5012a1039f0` — fix: replace assertRaisesRegexp with assertRaisesRegex
+- `lambda0xE_svm-fhe` `df696c943d5e` — orderbook submod
+- `lambda0xE_thundersvm` `802e6ed0e8f0` — Merge pull request #258 from PatrickKudo/patch-1
+- `lambda0xE_triton` `a9d1935e795c` — [FRONTEND] Fix error message when atomics are not supported for a given dtype (#1134)
+- `nftboy07-octra` `0eab5fbfdca4` — Correct active HFHE public key digest
+- `octra-labs_circle_examples` `4e9005750272` — data
+- `octra-labs_hfhe-challenge` `019380c97543` — clarify lpn samples
+- `octra-labs_lite_node` `b16b2e29fe03` — gen configurator and val tools
+- `octra-labs_ocs01-test` `8e9bb451ea46` — Update README.md
+- `octra-labs_program-examples` `d742140a4187` — Merge pull request #1 from chiefautism/add-appliedml-program-examples
+- `octra-labs_pvac_hfhe_cpp` `071b0e909c11` — public matrix sampling
+- `octra-labs_wallet-gen` `0a5460adf416` — Merge pull request #34 from pavedroad/main
+- `octra-labs_webcli` `6c090ccce71c` — reject noncanonical ristretto encodings
+- `octra-sqlite` `3fc6082d034c` — Merge 0.6.0 upgrade release
+- `pvac_hfhe_cpp` `071b0e909c11` — public matrix sampling
+- `smoke-ui` `b30df471cbc7` — [verified] research: test binary lattice LPN attacks (#11)
+- `v1-recovery` `492995fab127` — Octra HFHE challenge: ciphertext-only mnemonic recovery via public R_com oracle
+- `wallet-gen` `0a5460adf416` — Merge pull request #34 from pavedroad/main
